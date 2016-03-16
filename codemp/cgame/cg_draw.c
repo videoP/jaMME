@@ -8974,13 +8974,6 @@ static void DrawStrafeLine(vec3_t velocity, float diff, qboolean active, int mov
 		//distance = 1000;
 
 		Dzikie_CG_DrawLine(320, 480, x, LINE_HEIGHT, lineWidth, color, color[3], cutoff);
-
-		if (cg_draw2D.integer == 2) {
-			if (moveDir == 8) {
-				Com_Printf("ok it should be printing center line here: %f\n", x); //wtf is wrong here?
-			}
-		}
-
 		//CG_DottedLineSegment( 320, 480, x, LINE_HEIGHT, 1, distance, color, color[3], cutoff ); //240 is center, so 220 - 260 is symetrical on crosshair.
 	}
 	if (cg_strafeHelper.integer & SHELPER_SUPEROLDSTYLE) {

@@ -686,7 +686,7 @@ static void CG_StrafeHelperActiveColorChange(void) {
 	cg.japro.strafeHelperActiveColor[2] /= 255.0f;
 	cg.japro.strafeHelperActiveColor[3] /= 255.0f;
 
-	//Com_Printf("New color is %f, %f, %f, %f\n", cg.strafeHelperActiveColor[0], cg.strafeHelperActiveColor[1], cg.strafeHelperActiveColor[2], cg.strafeHelperActiveColor[3]);
+	//Com_Printf("New color is %f, %f, %f, %f\n", cg.japro.strafeHelperActiveColor[0], cg.japro.strafeHelperActiveColor[1], cg.japro.strafeHelperActiveColor[2], cg.japro.strafeHelperActiveColor[3]);
 }
 
 
