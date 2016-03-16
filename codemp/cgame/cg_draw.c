@@ -6985,8 +6985,10 @@ static qboolean CG_DrawFollow(void) {
 	s = cgs.clientinfo[cg.snap->ps.clientNum].name;
 	CG_Text_Paint(320 - CG_Text_Width (s, 2.0f, FONT_MEDIUM)/2, 80, 2.0f, colorWhite, s, 0, 0, 0, FONT_MEDIUM);
 */
-	if (cg_newFollowText.integer)
+	if (cg_newFollowText.integer) {
+		s = cgs.clientinfo[cg.snap->ps.clientNum].name;
 		CG_Text_Paint(4, 12, 1.0f, colorWhite, s, 0, 0, 0, FONT_MEDIUM);//japro - Move spectated clients name to top left corner of screen like ql
+	}
 	else {
 		strcat(s, va(": %s", cgs.clientinfo[cg.playerCent->currentState.clientNum].name));
 		CG_Text_Paint(320 - CG_Text_Width(s, 0.7f, FONT_LARGE) / 2, 1, 0.7f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_LARGE);
