@@ -11,6 +11,12 @@ qboolean CG_WorldCoordToScreenCoordFloat(vec3_t worldCoord, float *x, float *y);
 qboolean CG_CalcMuzzlePoint( int entityNum, vec3_t muzzle );
 static void CG_DrawSiegeTimer(int timeRemaining, qboolean isMyTeam);
 static void CG_DrawSiegeDeathTimer( int timeRemaining );
+static void CG_DrawMovementKeys(centity_t *cent);//japro
+static void CG_CalculateSpeed(centity_t *cent); //japro
+static void CG_RaceTimer(centity_t *cent); //japro
+static void CG_Speedometer(centity_t *cent); //japro
+static void CG_StrafeHelper(centity_t *cent); //japro
+
 // nmckenzie: DUEL_HEALTH
 void CG_DrawDuelistHealth ( float x, float y, float w, float h, int duelist );
 
@@ -31,6 +37,20 @@ char teamChat2[256];
 
 // The time at which you died and the time it will take for you to rejoin game.
 int cg_siegeDeathTime = 0;
+
+//japro
+#define SHELPER_SUPEROLDSTYLE	(1<<0)
+#define SHELPER_OLDSTYLE		(1<<1)
+#define SHELPER_NEWBARS			(1<<2)
+#define SHELPER_OLDBARS			(1<<3)
+#define SHELPER_W				(1<<4)
+#define SHELPER_WA				(1<<5)
+#define SHELPER_WD				(1<<6)
+#define SHELPER_A				(1<<7)
+#define SHELPER_D				(1<<8)
+#define SHELPER_REAR			(1<<9)
+#define SHELPER_CENTER			(1<<10)
+#define SHELPER_CROSSHAIR		(1<<11)
 
 #define MAX_HUD_TICS 4
 const char *armorTicName[MAX_HUD_TICS] = 
@@ -1203,11 +1223,27 @@ void CG_DrawForcePower( menuDef_t *menuHUD )
 	}
 }
 
+//JAPRO - Ground Distance function for use in jump detection for movement keys - Start
+float PM_GroundDistance2(void)
+{
+	trace_t tr;
+	vec3_t down;
+
+	VectorCopy(cg.predictedPlayerState.origin, down);
+	down[2] -= 32768;
+	CG_Trace(&tr, cg.predictedPlayerState.origin, NULL, NULL, down, cg.predictedPlayerState.clientNum, MASK_SOLID);
+	VectorSubtract(cg.predictedPlayerState.origin, tr.endpos, down);
+
+	return VectorLength(down) - 24.0f;
+}
+//JAPRO - Ground Distance function for use in jump detection for movement keys - End
+
 /*
 ================
 CG_DrawHUD
 ================
 */
+void Dzikie_CG_DrawLine(float x1, float y1, float x2, float y2, float size, vec4_t color, float alpha, float ycutoff);
 void CG_DrawHUD(centity_t	*cent)
 {
 	menuDef_t	*menuHUD = NULL;
@@ -1215,6 +1251,37 @@ void CG_DrawHUD(centity_t	*cent)
 	const char *scoreStr = NULL;
 	int	scoreBias;
 	char scoreBiasStr[16];
+
+	if ((cg.japro.detected && cg_raceTimer.integer > 1) || cg_speedometer.integer || cg_strafeHelper.integer)
+		CG_CalculateSpeed(cent);
+	if (cg_drawMovementKeys.integer)
+		CG_DrawMovementKeys(cent);
+	if (cg_speedometer.integer)
+		CG_Speedometer(cent);
+	if (cg_strafeHelper.integer)
+		CG_StrafeHelper(cent);
+
+	if (cg_strafeHelper.integer & SHELPER_CROSSHAIR) {
+		vec3_t		hcolor;
+		float		lineWidth;
+		hcolor[0] = cg_crosshairRed.value / 255.0f;
+		hcolor[1] = cg_crosshairGreen.value / 255.0f;
+		hcolor[2] = cg_crosshairBlue.value / 255.0f;
+		hcolor[3] = cg_crosshairAlpha.value / 255.0f;//alpha? pff
+
+		lineWidth = cg_strafeHelperLineWidth.value;
+		if (lineWidth < 0.25f)
+			lineWidth = 0.25f;
+		else if (lineWidth > 5)
+			lineWidth = 5;
+
+		Dzikie_CG_DrawLine(320, 235, 320, 245, lineWidth, hcolor, hcolor[3], 0); //640x480, 320x240
+	}
+	if (cg.japro.detected && cg_raceTimer.integer)
+		CG_RaceTimer(cent);
+
+	if (!cg_drawHud.integer)
+		return;
 
 	if (cg_hudFiles.integer)
 	{
@@ -1324,43 +1391,48 @@ void CG_DrawHUD(centity_t	*cent)
 			//CG_Error("CG_ChatBox_ArrayInsert: unable to locate HUD menu file ");
 		}
 
-		//scoreStr = va("Score: %i", cgs.clientinfo[cg.snap->ps.clientNum].score);
-		if ( cgs.gametype == GT_DUEL )
-		{//A duel that requires more than one kill to knock the current enemy back to the queue
-			//show current kills out of how many needed
-			scoreStr = va("%s: %i/%i", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE], cgs.fraglimit);
-		}
-		else if (0 && cgs.gametype < GT_TEAM )
-		{	// This is a teamless mode, draw the score bias.
-			scoreBias = cg.snap->ps.persistant[PERS_SCORE] - cgs.scores1;
-			if (scoreBias == 0)
-			{	// We are the leader!
-				if (cgs.scores2 <= 0)
-				{	// Nobody to be ahead of yet.
-					Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), "");
-				}
-				else
-				{
-					scoreBias = cg.snap->ps.persistant[PERS_SCORE] - cgs.scores2;
-					if (scoreBias == 0)
-					{
-						Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (Tie)");
+		if (cg_drawScore.integer) {
+			//scoreStr = va("Score: %i", cgs.clientinfo[cg.snap->ps.clientNum].score);
+			if (cgs.gametype == GT_DUEL)
+			{//A duel that requires more than one kill to knock the current enemy back to the queue
+				//show current kills out of how many needed
+				scoreStr = va("%s: %i/%i", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE], cgs.fraglimit);
+			}
+			else if (0 && cgs.gametype < GT_TEAM)
+			{	// This is a teamless mode, draw the score bias.
+				scoreBias = cg.snap->ps.persistant[PERS_SCORE] - cgs.scores1;
+				if (scoreBias == 0)
+				{	// We are the leader!
+					if (cgs.scores2 <= 0)
+					{	// Nobody to be ahead of yet.
+						Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), "");
 					}
 					else
 					{
-						Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (+%d)", scoreBias);
+						scoreBias = cg.snap->ps.persistant[PERS_SCORE] - cgs.scores2;
+						if (scoreBias == 0)
+						{
+							Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (Tie)");
+						}
+						else
+						{
+							Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (+%d)", scoreBias);
+						}
 					}
 				}
+				else // if (scoreBias < 0)
+				{	// We are behind!
+					Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (%d)", scoreBias);
+				}
+				scoreStr = va("%s: %i%s", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE], scoreBiasStr);
 			}
-			else // if (scoreBias < 0)
-			{	// We are behind!
-				Com_sprintf(scoreBiasStr, sizeof(scoreBiasStr), " (%d)", scoreBias);
+			else
+			{	// Don't draw a bias.
+				scoreStr = va("%s: %i", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE]);
 			}
-			scoreStr = va("%s: %i%s", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE], scoreBiasStr);
 		}
-		else
-		{	// Don't draw a bias.
-			scoreStr = va("%s: %i", CG_GetStringEdString("MP_INGAME", "SCORE"), cg.snap->ps.persistant[PERS_SCORE]);
+		else {
+			scoreStr = "";
 		}
 
 		menuHUD = Menus_FindByName("righthud");
@@ -2811,30 +2883,40 @@ static void CG_DrawPickupItem( void ) {
 	}
 }
 
-static void CG_DrawMovementKeys( void ) {
+qboolean CG_InRollAnim(centity_t *cent);
+static void CG_DrawMovementKeys(centity_t *cent)
+{
 	usercmd_t cmd = { 0 };
-	char str1[32] = { 0 }, str2[32] = { 0 };
-	float w1 = 0.0f, w2 = 0.0f, height = 0.0f;
-	int fontIndex = FONT_MEDIUM;
+	int moveDir;
 
-	if ( !cg_drawMovementKeys.integer || !cg.snap ) //RAZTODO: works with demo playback??
+	if (!cg.snap)
 		return;
 
-	if ( cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback )
-		trap_GetUserCmd( trap_GetCurrentCmdNumber(), &cmd );
-	else {
-		int moveDir = cg.snap->ps.movementDir;
-		float xyspeed = sqrtf( cg.snap->ps.velocity[0]*cg.snap->ps.velocity[0] + cg.snap->ps.velocity[1]*cg.snap->ps.velocity[1] );
+	moveDir = cg.snap->ps.movementDir;
 
-		if ( (cg.snap->ps.pm_flags & PMF_JUMP_HELD) )//zspeed > lastZSpeed || zspeed > 10 )
+	//if (!pm)
+	//return;//idk
+
+	if (cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback)
+		trap_GetUserCmd(trap_GetCurrentCmdNumber(), &cmd);
+	else
+	{
+		float xyspeed = sqrtf(cg.snap->ps.velocity[0] * cg.snap->ps.velocity[0] + cg.snap->ps.velocity[1] * cg.snap->ps.velocity[1]);
+		float zspeed = cg.snap->ps.velocity[2];
+		static float lastZSpeed = 0.0f;
+
+		if ((PM_GroundDistance2() > 1 && zspeed > 8 && zspeed > lastZSpeed && !cg.snap->ps.fd.forceGripCripple) || (cg.snap->ps.pm_flags & PMF_JUMP_HELD))
 			cmd.upmove = 1;
-		else if ( (cg.snap->ps.pm_flags & PMF_DUCKED) )
+		else if ((cg.snap->ps.pm_flags & PMF_DUCKED) || CG_InRollAnim(cent))
 			cmd.upmove = -1;
 
-		if ( xyspeed < 10 )
+		if (xyspeed < 9)
 			moveDir = -1;
 
-		switch ( moveDir ) {
+		lastZSpeed = zspeed;
+
+		switch (moveDir)
+		{
 		case 0: // W
 			cmd.forwardmove = 1;
 			break;
@@ -2868,19 +2950,31 @@ static void CG_DrawMovementKeys( void ) {
 		}
 	}
 
-	w1 = CG_Text_Width( "v W ^", cg_drawMovementKeysScale.value, fontIndex );
-	w2 = CG_Text_Width( "A S D", cg_drawMovementKeysScale.value, fontIndex );
-	height = CG_Text_Height( "A S D v W ^", cg_drawMovementKeysScale.value, fontIndex );
+	if (cmd.upmove < 0)
+		CG_DrawPic(32 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyCrouchOnShader);
+	else
+		CG_DrawPic(32 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyCrouchOffShader);
+	if (cmd.upmove > 0)
+		CG_DrawPic(cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyJumpOnShader);
+	else
+		CG_DrawPic(cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyJumpOffShader);
+	if (cmd.forwardmove < 0)
+		CG_DrawPic(16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyBackOnShader);
+	else
+		CG_DrawPic(16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyBackOffShader);
+	if (cmd.forwardmove > 0)
+		CG_DrawPic(16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyForwardOnShader);
+	else
+		CG_DrawPic(16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyForwardOffShader);
+	if (cmd.rightmove < 0)
+		CG_DrawPic(cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyLeftOnShader);
+	else
+		CG_DrawPic(cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyLeftOffShader);
+	if (cmd.rightmove > 0)
+		CG_DrawPic(32 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyRightOnShader);
+	else
+		CG_DrawPic(32 * cg_drawMovementKeysScale.value + cg.moveKeysPos[0], 16 * cg_drawMovementKeysScale.value + cg.moveKeysPos[1], 16 * cg_drawMovementKeysScale.value, 16 * cg_drawMovementKeysScale.value, cgs.media.keyRightOffShader);
 
-	Com_sprintf( str1, sizeof(str1), va( "^%cv ^%cW ^%c^", (cmd.upmove < 0) ? COLOR_RED : COLOR_WHITE,
-		(cmd.forwardmove > 0) ? COLOR_RED : COLOR_WHITE, (cmd.upmove > 0) ? COLOR_RED : COLOR_WHITE ) );
-	Com_sprintf( str2, sizeof(str2), va( "^%cA ^%cS ^%cD", (cmd.rightmove < 0) ? COLOR_RED : COLOR_WHITE,
-		(cmd.forwardmove < 0) ? COLOR_RED : COLOR_WHITE, (cmd.rightmove > 0) ? COLOR_RED : COLOR_WHITE ) );
-
-	CG_Text_Paint( cg.moveKeysPos[0] - max( w1, w2 ) / 2.0f, cg.moveKeysPos[1], cg_drawMovementKeysScale.value, colorWhite,
-		str1, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, fontIndex );
-	CG_Text_Paint( cg.moveKeysPos[0] - max( w1, w2 ) / 2.0f, cg.moveKeysPos[1] + height, cg_drawMovementKeysScale.value,
-		colorWhite, str2, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, fontIndex );
 }
 
 /*
@@ -5265,6 +5359,9 @@ static void CG_DrawCrosshair( vec3_t worldPoint, int chEntValid ) {
 	if (!cg_drawCrosshair.integer)
 		return;
 
+	if (cg_strafeHelper.integer & SHELPER_CROSSHAIR)
+		return;
+
 	if (cg.fallingToDeath)
 		return;
 
@@ -6606,6 +6703,9 @@ static void CG_DrawVote(void) {
 	if ( !cgs.voteTime )
 		return;
 
+	if (!cg_drawVote.integer)
+		return;
+
 	// play a talk beep whenever it is modified
 	if ( cgs.voteModified ) {
 		cgs.voteModified = qfalse;
@@ -6886,7 +6986,11 @@ static qboolean CG_DrawFollow(void) {
 	CG_Text_Paint(320 - CG_Text_Width (s, 2.0f, FONT_MEDIUM)/2, 80, 2.0f, colorWhite, s, 0, 0, 0, FONT_MEDIUM);
 */
 	strcat(s, va(": %s", cgs.clientinfo[cg.playerCent->currentState.clientNum].name));
-	CG_Text_Paint(320 - CG_Text_Width (s, 0.7f, FONT_LARGE)/2, 1, 0.7f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_LARGE);
+	if (cg_newFollowText.integer)
+		CG_Text_Paint(4, 12, 1.0f, colorWhite, s, 0, 0, 0, FONT_MEDIUM);//japro - Move spectated clients name to top left corner of screen like ql
+	else
+		CG_Text_Paint(320 - CG_Text_Width (s, 0.7f, FONT_LARGE)/2, 1, 0.7f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_LARGE);
+
 	return qtrue;
 }
 
@@ -7666,7 +7770,7 @@ static CGAME_INLINE void CG_ChatBox_DrawStrings(void) {
 	int i = 0;
 	float x = 44.0f*cgs.widthRatioCoef;
 	float y = cg.scoreBoardShowing ? 475 : cg_chatBoxHeight.integer;
-	float fontScale = 0.65f;
+	float fontScale = 0.65f * cg_chatBoxSize.value;
 
 	if (!cg_chatBox.integer) {
 		return;
@@ -8305,7 +8409,6 @@ void CG_Draw2D (void) {
 			if (cg_drawStatus.integer)
 				CG_DrawStats();
 
-			CG_DrawMovementKeys();
 			CG_DrawPickupItem();
 			//Do we want to use this system again at some point?
 			CG_DrawReward();
@@ -8588,3 +8691,431 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 
 
 
+static void CG_CalculateSpeed(centity_t *cent) {
+	if (cg.predictedPlayerState.m_iVehicleNum) {
+		centity_t *vehCent = &cg_entities[cg.predictedPlayerState.m_iVehicleNum];
+
+		const vec_t * const velocity = (cent->currentState.clientNum == cg.clientNum ? vehCent->playerState->velocity : vehCent->currentState.pos.trDelta);
+		cg.japro.currentSpeed = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]); // is this right?
+	}
+	else {
+		const vec_t * const velocity = (cent->currentState.clientNum == cg.clientNum ? cg.predictedPlayerState.velocity : cent->currentState.pos.trDelta);
+		cg.japro.currentSpeed = sqrtf(velocity[0] * velocity[0] + velocity[1] * velocity[1]); // is this right?
+	}
+}
+
+#define STAT_RACEMODE 11
+static void CG_RaceTimer(centity_t *cent)
+{
+	char timerStr[32] = { 0 };
+	int time, minutes, seconds, deciseconds;
+
+	if (!cg.predictedPlayerState.stats[STAT_RACEMODE])
+		return;
+	if (!cg.predictedPlayerState.duelTime)
+		return;
+
+	time = (cg.time - cg.predictedPlayerState.duelTime);
+	minutes = (time / 1000) / 60;
+	seconds = (time / 1000) % 60;
+	deciseconds = time % 1000;
+	deciseconds = deciseconds / 100;
+
+	if (cg_raceTimer.integer > 1) {
+		if (time < 1000) {
+			cg.japro.displacement = 0;
+			cg.japro.maxSpeed = 0;
+			cg.japro.displacementSamples = 0;
+		}
+		else {
+			const float currentSpeed = cg.japro.currentSpeed;
+
+			if (currentSpeed > cg.japro.maxSpeed)
+				cg.japro.maxSpeed = currentSpeed;
+			cg.japro.displacement += currentSpeed;
+			cg.japro.displacementSamples++;
+		}
+	}
+
+	if (cg_raceTimer.integer > 1 && cg.japro.displacementSamples)
+		Com_sprintf(timerStr, sizeof(timerStr), "%i:%02i.%i\nMax: %i\nAvg: %i", minutes, seconds, deciseconds, (int)floorf(cg.japro.maxSpeed + 0.5f), cg.japro.displacement / cg.japro.displacementSamples);
+	else
+		Com_sprintf(timerStr, sizeof(timerStr), "%i:%02i.%i\n", minutes, seconds, deciseconds);
+	CG_Text_Paint(cg_raceTimerX.integer, cg_raceTimerY.integer, cg_raceTimerSize.value, colorTable[CT_WHITE], timerStr, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+}
+
+static void CG_Speedometer(centity_t *cent)
+{
+#define ACCEL_SAMPLES 16
+	const char *accelStr, *accelStr2, *accelStr3;
+	char speedStr[32] = { 0 }, speedStr2[32] = { 0 }, speedStr3[32] = { 0 };
+	vec4_t colorSpeed = { 1, 1, 1, 1 };
+	const float currentSpeed = cg.japro.currentSpeed;
+	static float lastSpeed = 0, previousAccels[ACCEL_SAMPLES];
+	const float accel = currentSpeed - lastSpeed;
+	float total, avgAccel;
+	int t, i;
+	unsigned short frameTime;
+	static unsigned short index;
+	static int	previous, lastupdate;
+
+	lastSpeed = currentSpeed;
+
+	if (currentSpeed > 250)
+	{
+		colorSpeed[1] = 1 / ((currentSpeed / 250)*(currentSpeed / 250));
+		colorSpeed[2] = 1 / ((currentSpeed / 250)*(currentSpeed / 250));
+	}
+
+	t = trap_Milliseconds();
+	frameTime = t - previous;
+	previous = t;
+	if (t - lastupdate > 5)	//don't sample faster than this
+	{
+		lastupdate = t;
+		previousAccels[index % ACCEL_SAMPLES] = accel;
+		index++;
+	}
+
+	total = 0;
+	for (i = 0; i < ACCEL_SAMPLES; i++) {
+		total += previousAccels[i];
+	}
+	if (!total) {
+		total = 1;
+	}
+	avgAccel = total / (float)ACCEL_SAMPLES - 0.0625f;//fucking why does it offset by this number
+
+	if (avgAccel > 0.0f)
+	{
+		accelStr = "^2µ:";
+		accelStr2 = "^2k:";
+		accelStr3 = "^2m: ";
+	}
+	else if (avgAccel < 0.0f)
+	{
+		accelStr = "^1µ:";
+		accelStr2 = "^1k:";
+		accelStr3 = "^1m: ";
+	}
+	else
+	{
+		accelStr = "^7µ:";
+		accelStr2 = "^7k:";
+		accelStr3 = "^7m: ";
+	}
+
+	if (cg_speedometer.integer == 1)
+	{
+		Com_sprintf(speedStr, sizeof(speedStr), "   %.0f", floorf(currentSpeed + 0.5f));
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorWhite, accelStr, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorSpeed, speedStr, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+	}
+	else if (cg_speedometer.integer == 2)
+	{
+		Com_sprintf(speedStr2, sizeof(speedStr2), "   %.1f", currentSpeed * 0.05);
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorWhite, accelStr2, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorSpeed, speedStr2, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+	}
+	else if (cg_speedometer.integer > 2)
+	{
+		Com_sprintf(speedStr3, sizeof(speedStr3), "   %.1f", currentSpeed * 0.03106855);
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorWhite, accelStr3, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+		CG_Text_Paint(cg_speedometerX.integer, cg_speedometerY.integer, cg_speedometerSize.value, colorSpeed, speedStr3, 0.0f, 0, ITEM_ALIGN_RIGHT | ITEM_TEXTSTYLE_OUTLINED, FONT_NONE);
+	}
+}
+
+int PM_GetMovePhysics(void)
+{
+#if _GAME
+	return 1;
+#else
+	if (!cg.japro.detected)
+		return 1;
+	if (pm && pm->ps)
+		return pm->ps->stats[13];
+	else if (cg.snap)
+		return cg.snap->ps.stats[13];
+	else
+		return 1;
+#endif
+}
+
+void Dzikie_CG_DrawLine(float x1, float y1, float x2, float y2, float size, vec4_t color, float alpha, float ycutoff)
+{
+	float stepx, stepy, length = sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
+	int i;
+
+	if (length < 1)
+		length = 1;
+	else if (length > 2000)
+		length = 2000;
+	if (!ycutoff)
+		ycutoff = 480;
+
+	stepx = (x2 - x1) / (length / size);
+	stepy = (y2 - y1) / (length / size);
+
+	trap_R_SetColor(color);
+
+	for (i = 0; i <= (length / size); i++) {
+		if (x1 < 640 && y1 < 480 && y1 < ycutoff)
+			CG_DrawPic(x1, y1, size, size, cgs.media.whiteShader);
+		x1 += stepx;
+		y1 += stepy;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void DrawStrafeLine(vec3_t velocity, float diff, qboolean active, int moveDir) { //moveDir is 1-7 for wasd combinations, and 8 for the centerline in cpm style, 9 and 10 for backwards a/d lines
+	vec3_t start, angs, forward, delta, line;
+	float x, y, startx, starty, lineWidth;
+	int sensitivity = cg_strafeHelperPrecision.integer;
+	static const int LINE_HEIGHT = 230; //240 is midpoint, so it should be a little higher so crosshair is always on it.
+	static const vec4_t activeColor = { 0, 1, 0, 0.75 }, normalColor = { 1, 1, 1, 0.75 }, invertColor = { 0.5f, 1, 1, 0.75 }, wColor = { 1, 0.5, 0.5, 0.75 }, rearColor = { 0.5, 1, 1, 0.75 }, centerColor = { 0.5, 1, 1, 0.75 };
+	vec4_t color = { 1, 1, 1, 0.75 };
+
+	//how the fuck do these colors work, 0111 is cyan?
+
+	if (cg_strafeHelperPrecision.integer < 100)
+		sensitivity = 100;
+	else if (cg_strafeHelperPrecision.integer > 10000)
+		sensitivity = 10000;
+
+	lineWidth = cg_strafeHelperLineWidth.value;
+	if (lineWidth < 0.25f)
+		lineWidth = 0.25f;
+	else if (lineWidth > 5)
+		lineWidth = 5;
+
+	if (active) {
+		color[0] = cg.japro.strafeHelperActiveColor[0];
+		color[1] = cg.japro.strafeHelperActiveColor[1];
+		color[2] = cg.japro.strafeHelperActiveColor[2];
+		color[3] = cg.japro.strafeHelperActiveColor[3];
+		//memcpy(color, activeColor, sizeof(vec4_t));
+	}
+	else {
+		if (moveDir == 1 || moveDir == 7)
+			memcpy(color, normalColor, sizeof(vec4_t));
+		else if (moveDir == 2 || moveDir == 6)
+			memcpy(color, invertColor, sizeof(vec4_t));
+		else if (moveDir == 0)
+			memcpy(color, wColor, sizeof(vec4_t));
+		else if (moveDir == 8)
+			memcpy(color, centerColor, sizeof(vec4_t));
+		else if (moveDir == 9 || moveDir == 10)
+			memcpy(color, rearColor, sizeof(vec4_t));
+
+		color[3] = cg_strafeHelperInactiveAlpha.value / 255.0f;
+	}
+
+	VectorCopy(cg.predictedPlayerState.origin, start);
+
+	VectorCopy(velocity, angs);
+	angs[YAW] += diff;
+	AngleVectors(angs, forward, NULL, NULL);
+	VectorScale(forward, sensitivity, delta); // line length
+
+	line[0] = delta[0] + start[0];
+	line[1] = delta[1] + start[1];
+	line[2] = start[2];
+
+	if (!CG_WorldCoordToScreenCoordFloat(line, &x, &y))
+		return;
+
+	if (cg_strafeHelper.integer & SHELPER_NEWBARS) {
+		Dzikie_CG_DrawLine(x, 260, x, 220, lineWidth, color, 0.75f, 0);
+		//CG_DottedLine( x, 260, x, 220, 1, 100, color, 0.75f ); //240 is center, so 220 - 260 is symetrical on crosshair.'
+	}
+	if (cg_strafeHelper.integer & SHELPER_OLDBARS && active && moveDir != 0) { //Not sure how to deal with multiple lines for W only so just fuck it for now..
+		//Proper way is to tell which line we are closest to aiming at and display the shit for that...
+		CG_FillRect(320, 240, (-4.444 * AngleSubtract(cg.predictedPlayerState.viewangles[YAW], angs[YAW])), 12, colorTable[CT_RED]);
+	}
+	if (cg_strafeHelper.integer & SHELPER_OLDSTYLE) {
+		int cutoff = 480 - cg_strafeHelperCutoff.integer; //Should be between 480 and LINE_HEIGHT
+		//distance = sqrt( ((320-x)*(320-x)) + ((480-LINE_HEIGHT)*(480-LINE_HEIGHT)) ); 
+
+		if (cutoff > 480)
+			cutoff = 480;
+		if (cutoff < LINE_HEIGHT + 20)
+			cutoff = LINE_HEIGHT + 20;
+
+		//Com_Printf("Numdots %i\n", distance);
+		//if (distance < 0)
+		//distance = 100;
+		//else if (distance > 1000)
+		//distance = 1000;
+
+		Dzikie_CG_DrawLine(320, 480, x, LINE_HEIGHT, lineWidth, color, color[3], cutoff);
+
+		if (cg_draw2D.integer == 2) {
+			if (moveDir == 8) {
+				Com_Printf("ok it should be printing center line here: %f\n", x); //wtf is wrong here?
+			}
+		}
+
+		//CG_DottedLineSegment( 320, 480, x, LINE_HEIGHT, 1, distance, color, color[3], cutoff ); //240 is center, so 220 - 260 is symetrical on crosshair.
+	}
+	if (cg_strafeHelper.integer & SHELPER_SUPEROLDSTYLE) {
+		int cutoff = 480 - cg_strafeHelperCutoff.integer; //Should be between 480 and LINE_HEIGHT
+		//distance = sqrt( ((320-x)*(320-x)) + ((480-LINE_HEIGHT)*(480-LINE_HEIGHT)) ); 
+
+		if (cutoff > 480)
+			cutoff = 480;
+		if (cutoff < LINE_HEIGHT + 20)
+			cutoff = LINE_HEIGHT + 20;
+
+		if (CG_WorldCoordToScreenCoordFloat(start, &startx, &starty))
+			Dzikie_CG_DrawLine(startx, starty, x, y, lineWidth, color, color[3], cutoff);
+		//CG_DottedLineSegment( startx, starty, x, y, 1, distance, color, color[3], cutoff ); //240 is center, so 220 - 260 is symetrical on crosshair.
+	}
+}
+
+int PM_GetMovePhysics();
+static void CG_StrafeHelper(centity_t *cent)
+{
+	vec_t * velocity = (cent->currentState.clientNum == cg.clientNum ? cg.predictedPlayerState.velocity : cent->currentState.pos.trDelta);
+	static vec3_t velocityAngle;
+	const float currentSpeed = cg.japro.currentSpeed;
+	float pmAccel = 10.0f, pmFriction = 6.0f, frametime, optimalDeltaAngle, baseSpeed = cg.predictedPlayerState.speed;
+	const int moveStyle = PM_GetMovePhysics();
+	int offset = 75;
+	int invertedOffset = 75;
+	int moveDir;
+	qboolean onGround;
+	usercmd_t cmd = { 0 };
+
+
+	if (moveStyle == 0)
+		return;
+	if (currentSpeed < (baseSpeed - 1))
+		return;
+
+	if (moveStyle == 9 && cg.predictedPlayerState.m_iVehicleNum) {
+		centity_t *vehCent = &cg_entities[cg.predictedPlayerState.m_iVehicleNum];
+		velocity = vehCent->currentState.pos.trDelta; //jerky otherwise?
+		if (cg.predictedPlayerState.commandTime < vehCent->m_pVehicle->m_iTurboTime) {
+			//baseSpeed = 1400;
+			baseSpeed = vehCent->m_pVehicle->m_pVehicleInfo->turboSpeed;
+		}
+		else {
+			//baseSpeed = 700;
+			baseSpeed = vehCent->m_pVehicle->m_pVehicleInfo->speedMax;
+		}
+	}
+
+	if (moveStyle == 6) {
+		pmAccel = 12.0f;
+		pmFriction = 8.0f;
+	}
+	else if (moveStyle == 3 || moveStyle == 8) {
+		pmAccel = 15.0f;
+		pmFriction = 8.0f;
+	}
+
+	if (cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback) {
+		trap_GetUserCmd(trap_GetCurrentCmdNumber(), &cmd);
+	}
+	else if (cg.snap) {
+		moveDir = cg.snap->ps.movementDir;
+		switch (moveDir) {
+		case 0: // W
+			cmd.forwardmove = 1; break;
+		case 1: // WA
+			cmd.forwardmove = 1; cmd.rightmove = -1; break;
+		case 2: // A
+			cmd.rightmove = -1;	break;
+		case 3: // AS
+			cmd.rightmove = -1;	cmd.forwardmove = -1; break;
+		case 4: // S
+			cmd.forwardmove = -1; break;
+		case 5: // SD
+			cmd.forwardmove = -1; cmd.rightmove = 1; break;
+		case 6: // D
+			cmd.rightmove = 1; break;
+		case 7: // DW
+			cmd.rightmove = 1; cmd.forwardmove = 1;	break;
+		default:
+			break;
+		}
+	}
+	else {
+		return; //No cg.snap causes this to return.
+	}
+
+	onGround = (qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD); //sadly predictedPlayerState makes it jerky so need to use cg.snap groundentityNum, and check for cg.snap earlier
+
+	
+	frametime = 0.008f; //just assume 125fps physics i guess since know way of knowing, and dont feel like making cvar.
+
+	if (onGround)//On ground
+		optimalDeltaAngle = acos((double)((baseSpeed - pmAccel*baseSpeed*frametime) / (currentSpeed*(1 - pmFriction*(frametime))))) * (180.0f / M_PI) - 45.0f;
+	else
+		optimalDeltaAngle = acos((double)((baseSpeed - (baseSpeed * frametime)) / currentSpeed)) * (180.0f / M_PI) - 45.0f;
+
+	if (optimalDeltaAngle < 0 || optimalDeltaAngle > 360)
+		optimalDeltaAngle = 0;
+
+	//Com_Printf("Optimal Angle is %.3f\n", optimalDeltaAngle);
+
+	velocity[2] = 0;
+	vectoangles(velocity, velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
+
+	if (moveStyle == 2 || moveStyle == 3 || moveStyle == 5 || moveStyle == 6 || moveStyle == 8 || moveStyle == 9) {//QW, CPM, PJK, WSW, RJCPM have center line
+		if (cg_strafeHelper.integer & SHELPER_CENTER) {
+			DrawStrafeLine(velocityAngle, 0, (qboolean)(cmd.forwardmove == 0 && cmd.rightmove != 0), 8); //Center
+		}
+	}
+	if (moveStyle != 2 && moveStyle != 9) { //Every style but QW has WA/WD lines
+		if (cg_strafeHelper.integer & SHELPER_WA)
+			DrawStrafeLine(velocityAngle, (optimalDeltaAngle + (offset * 0.01f)), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove < 0), 1); //WA
+		if (cg_strafeHelper.integer & SHELPER_WD)
+			DrawStrafeLine(velocityAngle, (-optimalDeltaAngle - (offset * 0.01f)), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove > 0), 7); //WD
+	}
+	if (moveStyle == 1 || moveStyle == 4 || moveStyle == 7 || moveStyle == 10) { //JKA, Q3, RJQ3, Jetpack? have A/D
+		if (cg_strafeHelper.integer & SHELPER_A)
+			DrawStrafeLine(velocityAngle, -(45.0f - (optimalDeltaAngle + (invertedOffset * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove < 0), 2); //A
+		if (cg_strafeHelper.integer & SHELPER_D)
+			DrawStrafeLine(velocityAngle, (45.0f - (optimalDeltaAngle + (invertedOffset * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove > 0), 6); //D
+
+		//A/D backwards strafe?
+		if (cg_strafeHelper.integer & SHELPER_REAR) {
+			DrawStrafeLine(velocityAngle, (225.0f - (optimalDeltaAngle + (invertedOffset * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove < 0), 9); //A
+			DrawStrafeLine(velocityAngle, (135.0f + (optimalDeltaAngle + (invertedOffset * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove > 0), 10); //D
+		}
+	}
+	if (moveStyle == 1 || moveStyle == 4 || moveStyle == 7 || moveStyle == 10 || moveStyle == 9) {
+		//W only
+		if (cg_strafeHelper.integer & SHELPER_W) {
+			DrawStrafeLine(velocityAngle, (45.0f + (optimalDeltaAngle + (offset * 0.01f))), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove == 0), 0); //W
+			DrawStrafeLine(velocityAngle, (-45.0f - (optimalDeltaAngle + (offset * 0.01f))), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove == 0), 0); //W
+		}
+	}
+}

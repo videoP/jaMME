@@ -1114,6 +1114,18 @@ Ghoul2 Insert End
 			int			teamEnergizes;
 		} stats[MAX_CLIENTS];
 	} enhanced;
+	struct {
+		qboolean		detected;
+		unsigned int		displacement, displacementSamples; //Speedometer, racetimer stuff
+		float				maxSpeed, currentSpeed;
+		int					lastCheckPointPrintTime;
+		int					timerStartTime;
+		vec4_t				strafeHelperActiveColor;
+		//char				logStrafeTrailFilename[MAX_QPATH];
+		//qboolean			loggingStrafeTrail;
+		//fileHandle_t		strafeTrailFileHandle;
+		//clientCheckpoint_t	clientCheckpoints[MAX_CLIENT_CHECKPOINTS];//japro checkpoints
+	} japro;
 	
 	int					chargeTime;
 	qboolean			charging;
@@ -1220,6 +1232,21 @@ typedef struct {
 	qhandle_t	wireframeAutomapFrame_right;
 	qhandle_t	wireframeAutomapFrame_top;
 	qhandle_t	wireframeAutomapFrame_bottom;
+
+//JAPRO - Movement keys - Start
+	qhandle_t	keyCrouchOffShader;
+	qhandle_t	keyCrouchOnShader;
+	qhandle_t	keyJumpOffShader;
+	qhandle_t	keyJumpOnShader;
+	qhandle_t	keyBackOffShader;
+	qhandle_t	keyBackOnShader;
+	qhandle_t	keyForwardOffShader;
+	qhandle_t	keyForwardOnShader;
+	qhandle_t	keyLeftOffShader;
+	qhandle_t	keyLeftOnShader;
+	qhandle_t	keyRightOffShader;
+	qhandle_t	keyRightOnShader;
+//JAPRO - Movement keys - End
 
 //Chunks
 	qhandle_t	chunkModels[NUM_CHUNK_TYPES][4];

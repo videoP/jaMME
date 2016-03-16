@@ -652,6 +652,44 @@ static void CG_SetMovementKeysPos( void ) {
 	}
 }
 
+//Strafehelper colors
+static void CG_StrafeHelperActiveColorChange(void) {
+	if (sscanf(cg_strafeHelperActiveColor.string, "%f %f %f %f", &cg.japro.strafeHelperActiveColor[0], &cg.japro.strafeHelperActiveColor[1], &cg.japro.strafeHelperActiveColor[2], &cg.japro.strafeHelperActiveColor[3]) != 4) {
+		cg.japro.strafeHelperActiveColor[0] = 0;
+		cg.japro.strafeHelperActiveColor[1] = 255;
+		cg.japro.strafeHelperActiveColor[2] = 0;
+		cg.japro.strafeHelperActiveColor[3] = 200;
+	}
+
+	if (cg.japro.strafeHelperActiveColor[0] < 0)
+		cg.japro.strafeHelperActiveColor[0] = 0;
+	else if (cg.japro.strafeHelperActiveColor[0] > 255)
+		cg.japro.strafeHelperActiveColor[0] = 255;
+
+	if (cg.japro.strafeHelperActiveColor[1] < 0)
+		cg.japro.strafeHelperActiveColor[1] = 0;
+	else if (cg.japro.strafeHelperActiveColor[1] > 255)
+		cg.japro.strafeHelperActiveColor[1] = 255;
+
+	if (cg.japro.strafeHelperActiveColor[2] < 0)
+		cg.japro.strafeHelperActiveColor[2] = 0;
+	else if (cg.japro.strafeHelperActiveColor[2] > 255)
+		cg.japro.strafeHelperActiveColor[2] = 255;
+
+	if (cg.japro.strafeHelperActiveColor[3] < 25)
+		cg.japro.strafeHelperActiveColor[3] = 25;
+	else if (cg.japro.strafeHelperActiveColor[3] > 255)
+		cg.japro.strafeHelperActiveColor[3] = 255;
+
+	cg.japro.strafeHelperActiveColor[0] /= 255.0f;
+	cg.japro.strafeHelperActiveColor[1] /= 255.0f;
+	cg.japro.strafeHelperActiveColor[2] /= 255.0f;
+	cg.japro.strafeHelperActiveColor[3] /= 255.0f;
+
+	//Com_Printf("New color is %f, %f, %f, %f\n", cg.strafeHelperActiveColor[0], cg.strafeHelperActiveColor[1], cg.strafeHelperActiveColor[2], cg.strafeHelperActiveColor[3]);
+}
+
+
 static void CG_SVRunningChange( void ) {
 	cgs.localServer = sv_running.integer;
 }
@@ -1813,6 +1851,21 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.glassChunkSound		= trap_S_RegisterSound("sound/weapons/explosions/glassbreak1.wav");
 	cgs.media.crateBreakSound[0]	= trap_S_RegisterSound("sound/weapons/explosions/crateBust1.wav" );
 	cgs.media.crateBreakSound[1]	= trap_S_RegisterSound("sound/weapons/explosions/crateBust2.wav" );
+
+//JAPRO - Movement Keys - Start
+	cgs.media.keyCrouchOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/crouch_off");
+	cgs.media.keyCrouchOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/crouch_on");
+	cgs.media.keyJumpOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/jump_off");
+	cgs.media.keyJumpOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/jump_on");
+	cgs.media.keyBackOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/back_off");
+	cgs.media.keyBackOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/back_on");
+	cgs.media.keyForwardOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/forward_off");
+	cgs.media.keyForwardOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/forward_on");
+	cgs.media.keyLeftOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/left_off");
+	cgs.media.keyLeftOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/left_on");
+	cgs.media.keyRightOffShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/right_off");
+	cgs.media.keyRightOnShader = trap_R_RegisterShaderNoMip("gfx/hud/keys/right_on");
+//JAPRO - Movement Keys - End
 
 /*
 Ghoul2 Insert Start
