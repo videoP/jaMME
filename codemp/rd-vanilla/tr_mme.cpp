@@ -69,6 +69,8 @@ cvar_t	*mme_saveShot;
 cvar_t	*mme_saveStencil;
 cvar_t	*mme_saveDepth;
 
+cvar_t	*mme_forceTGA;//loda
+
 cvar_t	*mme_aviLimit;
 
 ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block ) {
@@ -525,8 +527,14 @@ const void *R_MME_CaptureShotCmd( const void *data ) {
 		
 		//grayscale works fine only with compressed avi :(
 		if (shotData.main.format != mmeShotFormatAVI || !mme_aviFormat->integer) {
-			shotData.depth.format = mmeShotFormatPNG;
-			shotData.stencil.format = mmeShotFormatPNG;
+			if (mme_forceTGA->integer) {
+				shotData.depth.format = mmeShotFormatTGA;
+				shotData.stencil.format = mmeShotFormatTGA;
+			}
+			else {
+				shotData.depth.format = mmeShotFormatPNG;
+				shotData.stencil.format = mmeShotFormatPNG;
+			}
 		} else {
 			shotData.depth.format = mmeShotFormatAVI;
 			shotData.stencil.format = mmeShotFormatAVI;
@@ -621,6 +629,8 @@ void R_MME_Init(void) {
 	mme_saveDepth = ri.Cvar_Get ( "mme_saveDepth", "0", CVAR_ARCHIVE );
 	mme_saveShot = ri.Cvar_Get ( "mme_saveShot", "1", CVAR_ARCHIVE );
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
+
+	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE);//loda
 
 	mme_worldShader->modified = qtrue;
 

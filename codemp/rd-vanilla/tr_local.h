@@ -1320,6 +1320,8 @@ extern cvar_t	*mme_saveStencil;
 extern cvar_t	*mme_saveShot;
 extern cvar_t	*mme_saveDepth;
 
+extern cvar_t	*mme_forceTGA;//loda
+
 /*
 Ghoul2 Insert Start
 */

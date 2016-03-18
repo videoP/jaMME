@@ -431,8 +431,14 @@ const void *R_MME_CaptureShotCmdStereo( const void *data ) {
 		
 		//grayscale works fine only with compressed avi :(
 		if (shotData.main.format != mmeShotFormatAVI || !mme_aviFormat->integer) {
-			shotData.depth.format = mmeShotFormatPNG;
-			shotData.stencil.format = mmeShotFormatPNG;
+			if (mme_forceTGA->integer) {
+				shotData.depth.format = mmeShotFormatTGA;
+				shotData.stencil.format = mmeShotFormatTGA;
+			}
+			else {
+				shotData.depth.format = mmeShotFormatPNG;
+				shotData.stencil.format = mmeShotFormatPNG;
+			}
 		} else {
 			shotData.depth.format = mmeShotFormatAVI;
 			shotData.stencil.format = mmeShotFormatAVI;

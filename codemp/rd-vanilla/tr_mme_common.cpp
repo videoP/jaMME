@@ -83,7 +83,7 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 		break;
 	case mmeShotFormatTGA:
 		/* Seems hardly any program can handle grayscale tga, switching to png */
-		if (shot->type == mmeShotTypeGray) {
+		if (shot->type == mmeShotTypeGray && !mme_forceTGA->integer) { //loda
 			format = mmeShotFormatPNG;
 			extension = "png";
 		} else {
