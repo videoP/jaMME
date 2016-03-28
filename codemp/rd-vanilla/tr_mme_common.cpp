@@ -72,6 +72,10 @@ void R_MME_GetDepth( byte *output ) { //Modify this to take into account the HUD
 }
 
 void R_MME_OpenPipe() {
+
+	//ffmpeg -loglevel debug -r FRAMERATE -f rawvideo -pix_fmt rgb24 -s WIDTHxHEIGHT -i - -threads 0 -vf "vflip,colorchannelmixer=rr=0:rg=1:gr=1:gg=0" -preset slow -y -pix_fmt yuv420p -crf QUALITY plzwork3.mp4 2> pipelog.txt
+
+
 	if (!(ffmpegPipe = _popen(mme_pipeString->string, "wb"))) {
 		Com_Printf(S_COLOR_RED "ERROR: popen error\n");
 		return;
@@ -85,12 +89,10 @@ void R_MME_ClosePipe() {
 }
 
 void R_MME_WriteToPipe(const char *qpath, const void *buffer, int size) {
-	int x = 1920, y = 1080;
-
 	if (ffmpegPipe == NULL) 
 		R_MME_OpenPipe();
 
-	fwrite(buffer, 4*x*y, 1, ffmpegPipe); //???
+	fwrite(buffer, 3 * glConfig.vidWidth* glConfig.vidHeight, 1, ffmpegPipe); //???
 }
 
 void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf ) { //Modify this so we can pipe to ffmpeg instead of write to file?
