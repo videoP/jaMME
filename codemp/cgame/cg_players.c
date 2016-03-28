@@ -13018,6 +13018,37 @@ skipCloaked:
 			trap_R_AddRefEntityToScene( &legs );
 	}
 
+
+	//Start mov_wallhack improved player wallhack option (red sight shader, only active if no line of sight)
+	else if ((mov_wallhack.integer & movSightWallhack)
+		&& cg.demoPlayback
+		&& (cent->currentState.eType == ET_PLAYER)
+		&& (cg.snap->ps.clientNum != cent->currentState.number) //Dont wallhack our own playermodel.
+		&& !(cent->currentState.eFlags & EF_DEAD))
+	{
+		trace_t trace;
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, cent->lerpOrigin, cg.predictedPlayerState.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+
+		if (trace.entityNum >= MAX_CLIENTS) { //No LOS to the player, so wallhack it
+			if (ci->team == TEAM_BLUE) {
+				legs.shaderRGBA[0] = 0;
+				legs.shaderRGBA[1] = 0;
+				legs.shaderRGBA[2] = 200;
+			}
+			else { //Show them as red in FFA instead of yellow to avoid force sight confusion also..
+				legs.shaderRGBA[0] = 200;
+				legs.shaderRGBA[1] = 0;
+				legs.shaderRGBA[2] = 0;
+			}
+			legs.renderfx |= RF_MINLIGHT | RF_NODEPTH;
+			legs.renderfx &= ~RF_RGB_TINT;
+			legs.renderfx &= ~RF_FORCE_ENT_ALPHA;
+			legs.customShader = cgs.media.playerShieldDamage;
+
+			trap_R_AddRefEntityToScene(&legs);
+		}
+	}
+
 	// Electricity
 	//------------------------------------------------
 	if ( cent->currentState.emplacedOwner > cg.time ) 

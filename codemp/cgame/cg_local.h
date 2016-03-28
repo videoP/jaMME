@@ -2699,6 +2699,7 @@ void CG_RailTrail( clientInfo_t *ci, vec3_t start, vec3_t end );
 #define movMaskMissiles		0x004
 #define movMaskItems		0x008
 #define movMaskFlags		0x010
+#define	movSightWallhack	0x020
 
 #define	SDISABLE_JUMP			0x000001
 #define	SDISABLE_ROLL			0x000002
