@@ -1,5 +1,7 @@
 #include "tr_mme.h"
 
+FILE *ffmpegPipe;//loda
+
 extern GLuint pboIds[2];
 void R_MME_GetShot( void* output ) {
 	if (!mme_pbo->integer || r_stereoSeparation->value != 0) {
@@ -26,7 +28,7 @@ void R_MME_GetStencil( void *output ) {
 	qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, output ); 
 }
 
-void R_MME_GetDepth( byte *output ) {
+void R_MME_GetDepth( byte *output ) { //Modify this to take into account the HUD?
 	float focusStart, focusEnd, focusMul;
 	float zBase, zAdd, zRange;
 	int i, pixelCount;
@@ -69,7 +71,29 @@ void R_MME_GetDepth( byte *output ) {
 	ri.Hunk_FreeTempMemory( temp );
 }
 
-void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf ) {
+void R_MME_OpenPipe() {
+	if (!(ffmpegPipe = _popen(mme_pipeString->string, "wb"))) {
+		Com_Printf(S_COLOR_RED "ERROR: popen error\n");
+		return;
+	}
+}
+
+void R_MME_ClosePipe() {
+	if (ffmpegPipe) {	
+		_pclose(ffmpegPipe);
+	}
+}
+
+void R_MME_WriteToPipe(const char *qpath, const void *buffer, int size) {
+	int x = 1920, y = 1080;
+
+	if (ffmpegPipe == NULL) 
+		R_MME_OpenPipe();
+
+	fwrite(buffer, 4*x*y, 1, ffmpegPipe); //???
+}
+
+void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf ) { //Modify this so we can pipe to ffmpeg instead of write to file?
 	mmeShotFormat_t format;
 	char *extension;
 	char *outBuf;
@@ -139,8 +163,13 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 	default:
 		outSize = 0;
 	}
-	if (outSize)
-		ri.FS_WriteFile( fileName, outBuf, outSize );
+	if (outSize) {
+		if (1) {
+			R_MME_WriteToPipe(fileName, outBuf, outSize);
+		}
+		else
+			ri.FS_WriteFile(fileName, outBuf, outSize);
+	}
 	ri.Hunk_FreeTempMemory( outBuf );
 }
 

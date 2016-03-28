@@ -303,6 +303,7 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 	return qtrue;
 }
 
+void R_MME_WriteToPipe(const char *qpath, const void *buffer, int size);
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
 	int i, pixels, outSize;
@@ -345,7 +346,11 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 	aviFile->iframes++;
 
 	outSize = (outSize + 9) & ~1;	//make sure we align on 2 byte boundary, hurray M$
-	ri.FS_Write( outBuf, outSize, aviFile->f );
+	if (0)
+		ri.FS_Write( outBuf, outSize, aviFile->f );
+	else
+		R_MME_WriteToPipe(NULL, outBuf, outSize);
+
 	aviFile->written += outSize;
 
 	if (outSize > aviFile->maxSize)

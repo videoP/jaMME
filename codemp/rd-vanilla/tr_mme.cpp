@@ -70,6 +70,7 @@ cvar_t	*mme_saveStencil;
 cvar_t	*mme_saveDepth;
 
 cvar_t	*mme_forceTGA;//loda
+cvar_t  *mme_pipeString;//loda
 
 cvar_t	*mme_aviLimit;
 
@@ -587,6 +588,7 @@ void R_MME_Shutdown(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
+	R_MME_ClosePipe();
 }
 
 void R_MME_Init(void) {
@@ -631,6 +633,7 @@ void R_MME_Init(void) {
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
 
 	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE);//loda
+	mme_pipeString = ri.Cvar_Get("mme_pipeString", "ffmpeg -loglevel debug -r 30 -f rawvideo -pix_fmt rgba -s 1920x1080 -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip plzwork.mp4 2> pipelog.txt", CVAR_ARCHIVE);//loda
 
 	mme_worldShader->modified = qtrue;
 
