@@ -166,11 +166,7 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 		outSize = 0;
 	}
 	if (outSize) {
-		if (1) {
-			R_MME_WriteToPipe(fileName, outBuf, outSize);
-		}
-		else
-			ri.FS_WriteFile(fileName, outBuf, outSize);
+		ri.FS_WriteFile(fileName, outBuf, outSize);
 	}
 	ri.Hunk_FreeTempMemory( outBuf );
 }

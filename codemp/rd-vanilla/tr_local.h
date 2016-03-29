@@ -1322,6 +1322,7 @@ extern cvar_t	*mme_saveDepth;
 
 extern cvar_t	*mme_forceTGA;//loda
 extern cvar_t	*mme_pipeString;//loda
+extern cvar_t	*mme_ffmpeg;//loda
 
 /*
 Ghoul2 Insert Start

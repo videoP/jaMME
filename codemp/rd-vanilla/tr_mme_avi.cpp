@@ -227,34 +227,37 @@ void aviClose( mmeAviFile_t *aviFile ) {
 	aviFillHeader(aviFile, qtrue);
 }
 
-static qboolean aviOpen( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, qboolean audio) {
+static qboolean aviOpen( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, qboolean audio ) {
 	char fileName[MAX_OSPATH];
 	int i;
 	char aviHeader[AVI_HEADER_SIZE];
 
 	if (aviFile->f) {
-		Com_Printf( "wtf openAvi on an open handler" );
+		Com_Printf("wtf openAvi on an open handler");
 		return qfalse;
 	}
 	/* First see if the file already exist */
-	for (i = 0;i < AVI_MAX_FILES;i++) {
-		Com_sprintfOld( fileName, sizeof(fileName), "%s.%03d.avi", name, i );
-		if (!mme_aviLimit->integer || !ri.FS_FileExists( fileName ))
+	for (i = 0; i < AVI_MAX_FILES; i++) {
+		Com_sprintfOld(fileName, sizeof(fileName), "%s.%03d.avi", name, i);
+		if (!mme_aviLimit->integer || !ri.FS_FileExists(fileName))
 			break;
 	}
 	if (i == AVI_MAX_FILES) {
-		Com_Printf( "Max avi segments reached\n");
+		Com_Printf("Max avi segments reached\n");
 		return qfalse;
 	}
+	if (mme_ffmpeg->integer)
+	{
 #ifdef USE_AIO
-	aviFile->f = ri.FS_FOpenFileWriteAsync( fileName );
+		aviFile->f = ri.FS_FOpenFileWriteAsync(fileName);
 #else
-	aviFile->f = ri.FS_FDirectOpenFileWrite( fileName, "w+b");
+		aviFile->f = ri.FS_FDirectOpenFileWrite(fileName, "w+b");
 #endif
-	if (!aviFile->f) {
-		Com_Printf( "Failed to open %s for avi output\n", fileName );
-		return qfalse;
-	}
+		if (!aviFile->f) {
+			Com_Printf("Failed to open %s for avi output\n", fileName);
+			return qfalse;
+		}
+}
 	/* File should have been reset to 0 size */
 //	if (!audio)
 //		ri.FS_Write( aviHeader, AVI_HEADER_SIZE, aviFile->f );
@@ -304,52 +307,55 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 }
 
 void R_MME_WriteToPipe(const char *qpath, const void *buffer, int size);
-void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
+void mmeAviShot(mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio) {
 	byte *outBuf;
 	int i, pixels, outSize;
 	if (!fps)
 		return;
-	if (!aviValid( aviFile, name, type, width, height, fps, audio )) {
-		aviClose( aviFile );
-		if (!aviOpen( aviFile, name, type, width, height, fps, audio ))
+	if (!aviValid(aviFile, name, type, width, height, fps, audio)) {
+		aviClose(aviFile);
+		if (!aviOpen(aviFile, name, type, width, height, fps, audio))
 			return;
 	}
 	pixels = width*height;
-	outSize = width*height*3 + 2048; //Allocate bit more to be safish?
-	outBuf = (byte *)ri.Hunk_AllocateTempMemory( outSize + 8);
-	outBuf[0] = '0';outBuf[1] = '0';
-	outBuf[2] = 'd';outBuf[3] = 'b';
-	if ( aviFile->format == 0 ) {
+	outSize = width*height * 3 + 2048; //Allocate bit more to be safish?
+	outBuf = (byte *)ri.Hunk_AllocateTempMemory(outSize + 8);
+	outBuf[0] = '0'; outBuf[1] = '0';
+	outBuf[2] = 'd'; outBuf[3] = 'b';
+	if (aviFile->format == 0) {
 		switch (type) {
 		case mmeShotTypeGray:
-			for (i = 0;i<pixels;i++) {
+			for (i = 0; i < pixels; i++) {
 				outBuf[8 + i] = inBuf[i];
 			};
 			outSize = pixels;
 			break;
 		case mmeShotTypeRGB:
-			for (i = 0;i<pixels;i++) {
-				outBuf[8 + i*3 + 0 ] = inBuf[ i*3 + 2];
-				outBuf[8 + i*3 + 1 ] = inBuf[ i*3 + 1];
-				outBuf[8 + i*3 + 2 ] = inBuf[ i*3 + 0];
+			for (i = 0; i < pixels; i++) {
+				outBuf[8 + i * 3 + 0] = inBuf[i * 3 + 2];
+				outBuf[8 + i * 3 + 1] = inBuf[i * 3 + 1];
+				outBuf[8 + i * 3 + 2] = inBuf[i * 3 + 0];
 			}
 			outSize = width * height * 3;
 			break;
-		} 
-	} else if ( aviFile->format == 1 ) {
-		outSize = SaveJPG( mme_jpegQuality->integer, width, height, type, inBuf, outBuf + 8, outSize );
+		}
 	}
-	aviWrite32( outBuf + 4, outSize );
-	aviFile->index[ aviFile->iframes ] = outSize;
-	aviFile->aindex[ aviFile->iframes ] = -1;
+	else if (aviFile->format == 1) {
+		outSize = SaveJPG(mme_jpegQuality->integer, width, height, type, inBuf, outBuf + 8, outSize);
+	}
+	aviWrite32(outBuf + 4, outSize);
+	aviFile->index[aviFile->iframes] = outSize;
+	aviFile->aindex[aviFile->iframes] = -1;
 	aviFile->frames++;
 	aviFile->iframes++;
 
 	outSize = (outSize + 9) & ~1;	//make sure we align on 2 byte boundary, hurray M$
-	if (0)
-		ri.FS_Write( outBuf, outSize, aviFile->f );
-	else
+	if (mme_ffmpeg->integer){
 		R_MME_WriteToPipe(NULL, outBuf, outSize);
+	}
+	else {
+		ri.FS_Write(outBuf, outSize, aviFile->f);
+	}
 
 	aviFile->written += outSize;
 

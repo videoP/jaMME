@@ -71,6 +71,7 @@ cvar_t	*mme_saveDepth;
 
 cvar_t	*mme_forceTGA;//loda
 cvar_t  *mme_pipeString;//loda
+cvar_t  *mme_ffmpeg;//loda
 
 cvar_t	*mme_aviLimit;
 
@@ -633,6 +634,7 @@ void R_MME_Init(void) {
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
 
 	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE);//loda
+	mme_forceTGA = ri.Cvar_Get("mme_ffmpeg", "0", CVAR_ARCHIVE);//loda
 	mme_pipeString = ri.Cvar_Get("mme_pipeString", "ffmpeg -loglevel debug -r 30 -f rawvideo -pix_fmt rgb24 -s 1920x1080 -i - -vf \"vflip,colorchannelmixer=rr=0:rg=1:gr=1:gg=0\" -threads 0 -preset fast -y -pix_fmt yuv420p -crf 30 plzwork3.mp4 2> ffmpeglog.txt", CVAR_ARCHIVE);//loda
 
 	mme_worldShader->modified = qtrue;
