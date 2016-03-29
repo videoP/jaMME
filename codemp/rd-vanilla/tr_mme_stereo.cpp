@@ -424,7 +424,9 @@ const void *R_MME_CaptureShotCmdStereo( const void *data ) {
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "png")) {
 			shotData.main.format = mmeShotFormatPNG;
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "avi")) {
-			shotData.main.format = mmeShotFormatAVI;
+            shotData.main.format = mmeShotFormatAVI;
+        } else if (!Q_stricmp(mme_screenShotFormat->string, "pipe")) {
+             shotData.main.format = mmeShotFormatPIPE;
 		} else {
 			shotData.main.format = mmeShotFormatTGA;
 		}
@@ -478,12 +480,13 @@ void R_MME_CaptureStereo( const char *shotName, float fps, float focus, float ra
 	Com_sprintf(cmd->name, sizeof( cmd->name ), "%s.stereo", shotName );
 }
 
-void R_MME_ClosePipe();
 void R_MME_ShutdownStereo(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
-	R_MME_ClosePipe();
+	pipeClose( &shotData.main.pipe );
+    pipeClose( &shotData.depth.pipe );
+    pipeClose( &shotData.stencil.pipe );
 }
 
 void R_MME_InitStereo(void) {

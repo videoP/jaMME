@@ -3737,3 +3737,68 @@ bool FS_LoadMachOBundle( const char *name )
 	return true;
 }
 #endif
+
+//pipes!!
+fileHandle_t FS_PipeOpen(const char *qcmd, const char *qpath, const char *mode) {
+    char			*ospath;
+    fileHandle_t	f;
+    char            *cmd;
+    
+    if (!fs_searchpaths) {
+        Com_Error(ERR_FATAL, "Filesystem call made without initialization\n");
+    }
+    
+    f = FS_HandleForFile();
+    fsh[f].zipFile = qfalse;
+    
+    ospath = FS_BuildOSPath(fs_homepath->string, fs_gamedir, qpath);
+    
+    if (fs_debug->integer) {
+        Com_Printf("FS_PipeOpen: %s\n", ospath);
+    }
+    
+    if(FS_CreatePath(ospath)) {
+        return 0;
+    }
+    cmd = FS_BuildOSPath(fs_homepath->string, fs_gamedir, qcmd);
+    
+#ifdef _WIN32
+    fsh[f].handleFiles.file.o = _popen(cmd, mode);
+#else
+    fsh[f].handleFiles.file.o = popen(cmd, mode);
+#endif
+    
+    Q_strncpyz(fsh[f].name, qpath, sizeof(fsh[f].name));
+    
+    fsh[f].handleSync = qfalse;
+#ifdef USE_AIO
+    fsh[f].handleAsync = qfalse;
+#endif
+    if (!fsh[f].handleFiles.file.o) {
+        f = 0;
+    }
+    return f;
+}
+
+int FS_PipeWrite(const void *buffer, int len, fileHandle_t h) {
+    return FS_Write(buffer, len, h);
+}
+
+void FS_PipeClose(fileHandle_t f) {
+    if (!fs_searchpaths) {
+        Com_Error(ERR_FATAL, "Filesystem call made without initialization\n");
+    }
+    
+    if (fsh[f].streamed) {
+        Sys_EndStreamedFile(f);
+    }
+    // we didn't find it as a pak, so close it as a unique file
+    if (fsh[f].handleFiles.file.o) {
+#ifdef _WIN32
+        _pclose(fsh[f].handleFiles.file.o);
+#else
+        pclose(fsh[f].handleFiles.file.o);
+#endif
+    }
+    Com_Memset(&fsh[f], 0, sizeof(fsh[f]));
+}

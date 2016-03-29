@@ -223,24 +223,6 @@ int aviFillHeader( mmeAviFile_t *aviFile, qboolean close = qfalse ) {
 	return -1; //let's say -1 == success o:
 }
 
-FILE *ffmpegPipe;
-
-void R_MME_ClosePipe() {
-	if (ffmpegPipe) {	
-		_pclose(ffmpegPipe);
-	}
-}
-
-void R_MME_WriteToPipe(const void *buffer, int size) {
-	if (ffmpegPipe == NULL) {
-		if (!(ffmpegPipe = _popen(mme_pipeString->string, "wb"))) {
-			Com_Printf(S_COLOR_RED "ERROR: popen error\n");
-			return;
-		}
-	}
-	fwrite(buffer, 3 * glConfig.vidWidth * glConfig.vidHeight, 1, ffmpegPipe);
-}
-
 void aviClose( mmeAviFile_t *aviFile ) {
 	aviFillHeader(aviFile, qtrue);
 }
@@ -264,19 +246,15 @@ static qboolean aviOpen( mmeAviFile_t *aviFile, const char *name, mmeShotType_t 
 		Com_Printf( "Max avi segments reached\n");
 		return qfalse;
 	}
-
-	if (!mme_ffmpeg->integer) {
 #ifdef USE_AIO
-		aviFile->f = ri.FS_FOpenFileWriteAsync( fileName );
+	aviFile->f = ri.FS_FOpenFileWriteAsync( fileName );
 #else
-		aviFile->f = ri.FS_FDirectOpenFileWrite( fileName, "w+b");
+	aviFile->f = ri.FS_FDirectOpenFileWrite( fileName, "w+b");
 #endif
-		if (!aviFile->f) {
-			Com_Printf( "Failed to open %s for avi output\n", fileName );
-			return qfalse;
-		}
+	if (!aviFile->f) {
+		Com_Printf( "Failed to open %s for avi output\n", fileName );
+		return qfalse;
 	}
-
 	/* File should have been reset to 0 size */
 //	if (!audio)
 //		ri.FS_Write( aviHeader, AVI_HEADER_SIZE, aviFile->f );
@@ -367,12 +345,7 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 	aviFile->iframes++;
 
 	outSize = (outSize + 9) & ~1;	//make sure we align on 2 byte boundary, hurray M$
-	if (mme_ffmpeg->integer) {
-		R_MME_WriteToPipe(outBuf, outSize);
-	}
-	else {
-		ri.FS_Write( outBuf, outSize, aviFile->f );
-	}
+	ri.FS_Write( outBuf, outSize, aviFile->f );
 	aviFile->written += outSize;
 
 	if (outSize > aviFile->maxSize)

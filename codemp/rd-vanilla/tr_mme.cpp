@@ -69,11 +69,10 @@ cvar_t	*mme_saveShot;
 cvar_t	*mme_saveStencil;
 cvar_t	*mme_saveDepth;
 
-cvar_t	*mme_forceTGA;//loda
-cvar_t  *mme_pipeString;//loda
-cvar_t  *mme_ffmpeg;//loda
-
 cvar_t	*mme_aviLimit;
+cvar_t  *mme_pipeCommand;
+
+cvar_t	*mme_forceTGA;//loda
 
 ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block ) {
 	mmeBlurControl_t* control = block->control;
@@ -523,6 +522,8 @@ const void *R_MME_CaptureShotCmd( const void *data ) {
 			shotData.main.format = mmeShotFormatPNG;
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "avi")) {
 			shotData.main.format = mmeShotFormatAVI;
+		} else if (!Q_stricmp(mme_screenShotFormat->string, "pipe")) {
+            shotData.main.format = mmeShotFormatPIPE;
 		} else {
 			shotData.main.format = mmeShotFormatTGA;
 		}
@@ -585,12 +586,13 @@ void R_MME_BlurInfo( int* total, int *index ) {
 		*index -= blurData.control.overlapFrames;
 }
 
-void R_MME_ClosePipe();
 void R_MME_Shutdown(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
-	R_MME_ClosePipe();
+	pipeClose( &shotData.main.pipe );
+    pipeClose( &shotData.depth.pipe );
+    pipeClose( &shotData.stencil.pipe );
 }
 
 void R_MME_Init(void) {
@@ -635,9 +637,8 @@ void R_MME_Init(void) {
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
 
 	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE);//loda
-	mme_ffmpeg = ri.Cvar_Get("mme_ffmpeg", "0", CVAR_ARCHIVE);//loda
-	mme_pipeString = ri.Cvar_Get("mme_pipeString", "ffmpeg -loglevel debug -r 30 -f rawvideo -pix_fmt rgb24 -s 1920x1080 -i - -vf \"vflip,colorchannelmixer=rr=0:rg=1:gr=1:gg=0\" -threads 0 -preset fast -y -pix_fmt yuv420p -crf 30 plzwork3.mp4 2> ffmpeglog.txt", CVAR_ARCHIVE);//loda
-
+	mme_pipeCommand = ri.Cvar_Get ("mme_pipeCommand", "ffmpeg -r %f -f rawvideo -pix_fmt rgb24 -s %wx%h -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 17 -vf vflip mme/capture/%o.mp4 2> ffmpeglog.txt", CVAR_ARCHIVE);
+	
 	mme_worldShader->modified = qtrue;
 
 	Com_Memset( &shotData, 0, sizeof(shotData));
