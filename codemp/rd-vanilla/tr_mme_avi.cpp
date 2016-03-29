@@ -2,8 +2,6 @@
 
 #include "tr_mme.h"
 
-FILE *ffmpegPipe;
-
 static void aviWrite16( void *pos, unsigned short val) {
 	unsigned char *data = (unsigned char *)pos;
 	data[0] = (val >> 0) & 0xff;
@@ -225,6 +223,14 @@ int aviFillHeader( mmeAviFile_t *aviFile, qboolean close = qfalse ) {
 	return -1; //let's say -1 == success o:
 }
 
+FILE *ffmpegPipe;
+
+void R_MME_ClosePipe() {
+	if (ffmpegPipe) {	
+		_pclose(ffmpegPipe);
+	}
+}
+
 void R_MME_WriteToPipe(const void *buffer, int size) {
 	if (ffmpegPipe == NULL) {
 		if (!(ffmpegPipe = _popen(mme_pipeString->string, "wb"))) {
@@ -232,21 +238,17 @@ void R_MME_WriteToPipe(const void *buffer, int size) {
 			return;
 		}
 	}
-	fwrite(buffer, 3 * glConfig.vidWidth* glConfig.vidHeight, 1, ffmpegPipe);
+	fwrite(buffer, 3 * glConfig.vidWidth * glConfig.vidHeight, 1, ffmpegPipe);
 }
 
 void aviClose( mmeAviFile_t *aviFile ) {
 	aviFillHeader(aviFile, qtrue);
-
-	if (ffmpegPipe) {	
-		_pclose(ffmpegPipe);
-	}
 }
 
 static qboolean aviOpen( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, qboolean audio) {
 	char fileName[MAX_OSPATH];
 	int i;
-	char aviHeader[AVI_HEADER_SIZE];
+	//char aviHeader[AVI_HEADER_SIZE];
 
 	if (aviFile->f) {
 		Com_Printf( "wtf openAvi on an open handler" );

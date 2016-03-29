@@ -585,6 +585,7 @@ void R_MME_BlurInfo( int* total, int *index ) {
 		*index -= blurData.control.overlapFrames;
 }
 
+void R_MME_ClosePipe();
 void R_MME_Shutdown(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
