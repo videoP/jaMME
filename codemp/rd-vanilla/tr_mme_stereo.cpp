@@ -483,6 +483,7 @@ void R_MME_ShutdownStereo(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
+	R_MME_ClosePipe();
 }
 
 void R_MME_InitStereo(void) {

@@ -590,6 +590,7 @@ void R_MME_Shutdown(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
+	R_MME_ClosePipe();
 }
 
 void R_MME_Init(void) {
