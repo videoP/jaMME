@@ -61,7 +61,6 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio );
 void mmeAviSound( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, const byte *soundBuf, int size );
 void aviClose( mmeAviFile_t *aviFile );
-void R_MME_ClosePipe();
 
 void MME_AccumClearSSE( void *w, const void *r, short int mul, int count );
 void MME_AccumAddSSE( void* w, const void* r, short int mul, int count );

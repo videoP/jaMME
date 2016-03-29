@@ -1,7 +1,5 @@
 #include "tr_mme.h"
 
-FILE *ffmpegPipe;//loda
-
 extern GLuint pboIds[2];
 void R_MME_GetShot( void* output ) {
 	if (!mme_pbo->integer || r_stereoSeparation->value != 0) {
@@ -28,7 +26,7 @@ void R_MME_GetStencil( void *output ) {
 	qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, output ); 
 }
 
-void R_MME_GetDepth( byte *output ) { //Modify this to take into account the HUD?
+void R_MME_GetDepth( byte *output ) {
 	float focusStart, focusEnd, focusMul;
 	float zBase, zAdd, zRange;
 	int i, pixelCount;
@@ -71,31 +69,7 @@ void R_MME_GetDepth( byte *output ) { //Modify this to take into account the HUD
 	ri.Hunk_FreeTempMemory( temp );
 }
 
-void R_MME_OpenPipe() {
-
-	//ffmpeg -loglevel debug -r FRAMERATE -f rawvideo -pix_fmt rgb24 -s WIDTHxHEIGHT -i - -threads 0 -vf "vflip,colorchannelmixer=rr=0:rg=1:gr=1:gg=0" -preset slow -y -pix_fmt yuv420p -crf QUALITY plzwork3.mp4 2> pipelog.txt
-
-
-	if (!(ffmpegPipe = _popen(mme_pipeString->string, "wb"))) {
-		Com_Printf(S_COLOR_RED "ERROR: popen error\n");
-		return;
-	}
-}
-
-void R_MME_ClosePipe() {
-	if (ffmpegPipe) {	
-		_pclose(ffmpegPipe);
-	}
-}
-
-void R_MME_WriteToPipe(const char *qpath, const void *buffer, int size) {
-	if (ffmpegPipe == NULL) 
-		R_MME_OpenPipe();
-
-	fwrite(buffer, 3 * glConfig.vidWidth* glConfig.vidHeight, 1, ffmpegPipe); //???
-}
-
-void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf ) { //Modify this so we can pipe to ffmpeg instead of write to file?
+void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf ) {
 	mmeShotFormat_t format;
 	char *extension;
 	char *outBuf;
@@ -109,7 +83,7 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 		break;
 	case mmeShotFormatTGA:
 		/* Seems hardly any program can handle grayscale tga, switching to png */
-		if (shot->type == mmeShotTypeGray && !mme_forceTGA->integer) { //loda
+		if (shot->type == mmeShotTypeGray) {
 			format = mmeShotFormatPNG;
 			extension = "png";
 		} else {
@@ -165,9 +139,8 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 	default:
 		outSize = 0;
 	}
-	if (outSize) {
-		ri.FS_WriteFile(fileName, outBuf, outSize);
-	}
+	if (outSize)
+		ri.FS_WriteFile( fileName, outBuf, outSize );
 	ri.Hunk_FreeTempMemory( outBuf );
 }
 
