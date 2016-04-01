@@ -294,20 +294,23 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 		return qfalse;
 	if (Q_stricmp(aviFile->name, name))
 		return qfalse;
-	if (aviFile->written >= AVI_MAX_SIZE && mme_aviLimit->integer)
+	if (aviFile->written >= AVI_MAX_SIZE && mme_aviLimit->integer && !aviFile->pipe)
 		return qfalse;
 	if (mme_aviFormat->integer != aviFile->format)
-		return qfalse;
-	if (aviFile->audio != audio)
+        return qfalse;
+    //ffmpeg accepts w/ audio only, let's fool it
+	if (aviFile->audio != audio && !aviFile->pipe)
 		return qfalse;
 	return qtrue;
 }
 
+void R_GammaCorrectForPIPE(byte *in, byte *out, int bufSize);
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
 	int i, pixels, outSize;
 	if (!fps)
 		return;
+
 	if (!aviValid( aviFile, name, type, width, height, fps, audio )) {
 		aviClose( aviFile );
 		if (!aviOpen( aviFile, name, type, width, height, fps, audio ))
@@ -318,6 +321,9 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 	outBuf = (byte *)ri.Hunk_AllocateTempMemory( outSize + 8);
 	outBuf[0] = '0';outBuf[1] = '0';
 	outBuf[2] = 'd';outBuf[3] = 'b';
+
+	//Possible to just modify inbuf directly? 
+
 	if ( aviFile->format == 0 ) {
 		switch (type) {
 		case mmeShotTypeGray:
@@ -327,11 +333,18 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 			outSize = pixels;
 			break;
 		case mmeShotTypeRGB:
-			for (i = 0;i<pixels;i++) {
-				outBuf[8 + i*3 + 0 ] = inBuf[ i*3 + 2];
-				outBuf[8 + i*3 + 1 ] = inBuf[ i*3 + 1];
-				outBuf[8 + i*3 + 2 ] = inBuf[ i*3 + 0];
+			const qboolean doGamma = (qboolean)(( mme_screenShotGamma->integer || (tr.overbrightBits > 0) ) && (glConfig.deviceSupportsGamma ));
+
+			if (doGamma)
+				R_GammaCorrectForPIPE(inBuf, outBuf, pixels);//Can we do gamma correction here with lower cost?
+			else{
+				for (i = 0;i<pixels;i++) { //This is costly ~15ms per frame at 4k - loda
+					outBuf[8 + i*3 + 0 ] = inBuf[ i*3 + 2];
+					outBuf[8 + i*3 + 1 ] = inBuf[ i*3 + 1];
+					outBuf[8 + i*3 + 2 ] = inBuf[ i*3 + 0];
+				}
 			}
+
 			outSize = width * height * 3;
 			break;
 		} 

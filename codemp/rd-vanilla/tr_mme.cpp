@@ -430,8 +430,8 @@ qboolean R_MME_TakeShot( void ) {
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
 		R_MME_MultiShot( shotBuf );
+		if ( doGamma && (((shotData.main.format != mmeShotFormatAVI && shotData.main.format != mmeShotFormatPIPE) || shotData.main.avi.format == 1))) {//We can do gamma correction later in raw avishot and it will be faster.
 		
-		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
