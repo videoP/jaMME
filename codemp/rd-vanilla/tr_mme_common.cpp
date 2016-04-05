@@ -85,6 +85,7 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 	int outSize;
 	char fileName[MAX_OSPATH];
 
+
 	format = shot->format;
 	switch (format) {
 	case mmeShotFormatJPG:
@@ -109,8 +110,11 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 			shot->avi.pipe = qtrue;
 		}
 	case mmeShotFormatAVI:
+		const qboolean doGamma = (qboolean)(( mme_screenShotGamma->integer || (tr.overbrightBits > 0) ) && (glConfig.deviceSupportsGamma ));
 		if (audio)
 			mmeAviSound( &shot->avi, shot->name, shot->type, width, height, fps, aBuf, aSize );
+		if (doGamma)
+			R_GammaCorrect(inBuf, width*height*3);//Doing this after mmeAviSound is faster? idk why
 		mmeAviShot( &shot->avi, shot->name, shot->type, width, height, fps, inBuf, audio );
             return;
 	}

@@ -432,8 +432,8 @@ qboolean R_MME_TakeShot( void ) {
 	
 		R_MME_MultiShot( shotBuf);	
 
-		if (shotData.main.format != mmeShotFormatPIPE || shotData.main.type != mmeShotTypeBGR) {
-		//only do gamma here if its not a BGR pipe. in which case do it later in mmeavishot, for some reason its faster that way?
+		if (shotData.main.format != mmeShotFormatPIPE || shotData.main.type != mmeShotFormatAVI) {
+		//only do gamma here if its not avi, if we do it in mmeAviShot its faster for some reason?
 			if (doGamma)
 				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
 		}

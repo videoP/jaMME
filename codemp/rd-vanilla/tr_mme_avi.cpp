@@ -391,7 +391,7 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
 	int i, pixels, outSize;
-	const qboolean doGamma = (qboolean)(( mme_screenShotGamma->integer || (tr.overbrightBits > 0) ) && (glConfig.deviceSupportsGamma ));
+
 	if (!fps)
 		return;
 	if (!aviValid( aviFile, name, type, width, height, fps, audio )) {
@@ -399,11 +399,13 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 		if (!aviOpen( aviFile, name, type, width, height, fps, audio ))
 			return;
 	}
+
 	pixels = width*height;
 	outSize = width*height*3 + 2048; //Allocate bit more to be safish?
 	outBuf = (byte *)ri.Hunk_AllocateTempMemory( outSize + 8);
 	outBuf[0] = '0';outBuf[1] = '0';
 	outBuf[2] = 'd';outBuf[3] = 'b';
+
 	if ( aviFile->format == 0 ) {
 		switch (type) {
 		case mmeShotTypeGray:
@@ -420,9 +422,7 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 			}
 			outSize = width * height * 3;
 			break;
-		case mmeShotTypeBGR:		
-			if (doGamma)
-				R_GammaCorrect(inBuf, pixels*3);//Can we do gamma correction + color/avi conversion here with lower cost?
+		case mmeShotTypeBGR:	
 			outSize = width * height * 3;
 			break;
 		} 
