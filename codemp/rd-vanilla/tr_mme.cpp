@@ -251,7 +251,7 @@ int R_MME_MultiPassNext( ) {
 	return 0;
 }
 
-static void R_MME_MultiShot( byte * target, qboolean BGR ) {
+static void R_MME_MultiShot( byte * target ) {
 	if ( !passData.control.totalFrames ) {
 		R_MME_GetShot( target, shotData.main.type );
 	} else {
@@ -285,7 +285,7 @@ qboolean R_MME_TakeShot( void ) {
 			return qtrue;
 		blurControl->totalIndex = 0;
 		shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 3 );
-		R_MME_MultiShot( shotBuf, qfalse );
+		R_MME_MultiShot( shotBuf );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
@@ -298,7 +298,7 @@ qboolean R_MME_TakeShot( void ) {
 
 	if (shotData.fps < 0.0f) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5
-		R_MME_MultiShot( shotBuf, qfalse );
+		R_MME_MultiShot( shotBuf );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, qfalse, -1, inSound );
@@ -332,7 +332,7 @@ qboolean R_MME_TakeShot( void ) {
 			}
 			if ( mme_saveShot->integer == 1 ) {
 				byte* shotBuf = R_MME_BlurOverlapBuf( blurShot );
-				R_MME_MultiShot( shotBuf, qfalse ); 
+				R_MME_MultiShot( shotBuf ); 
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( shotBuf, glConfig.vidWidth * glConfig.vidHeight * 3 );
 				}
@@ -355,7 +355,7 @@ qboolean R_MME_TakeShot( void ) {
 			outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 			if ( mme_saveShot->integer == 1 ) {
-				R_MME_MultiShot( (byte*)outAlign, qfalse );
+				R_MME_MultiShot( (byte*)outAlign );
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( (byte *) outAlign, pixelCount * 3 );
 				}
