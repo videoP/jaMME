@@ -392,6 +392,7 @@ void R_GammaCorrectForPIPE(byte *in, int bufSize);
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
 	int i, pixels, outSize;
+	const qboolean doGamma = (qboolean)(( mme_screenShotGamma->integer || (tr.overbrightBits > 0) ) && (glConfig.deviceSupportsGamma ));
 	if (!fps)
 		return;
 	if (!aviValid( aviFile, name, type, width, height, fps, audio )) {
@@ -420,7 +421,9 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 			}
 			outSize = width * height * 3;
 			break;
-		case mmeShotTypeBGR:
+		case mmeShotTypeBGR:		
+			if (doGamma)
+				R_GammaCorrectForPIPE(inBuf, pixels*3);//Can we do gamma correction + color/avi conversion here with lower cost?
 			outSize = width * height * 3;
 			break;
 		} 

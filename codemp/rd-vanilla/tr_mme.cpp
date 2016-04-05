@@ -429,10 +429,14 @@ qboolean R_MME_TakeShot( void ) {
 	} 
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5?
-			
-		R_MME_MultiShot( shotBuf, qfalse);	
+	
+		R_MME_MultiShot( shotBuf);	
+
+		if (shotData.main.format != mmeShotFormatPIPE || shotData.main.type != mmeShotTypeBGR) {
+		//only do gamma here if its not a BGR pipe. in which case do it later in mmeavishot, for some reason its faster that way?
 			if (doGamma)
 				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
+		}
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
