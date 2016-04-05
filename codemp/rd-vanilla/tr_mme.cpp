@@ -431,12 +431,8 @@ qboolean R_MME_TakeShot( void ) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5?
 	
 		R_MME_MultiShot( shotBuf);	
-
-		if (shotData.main.format != mmeShotFormatPIPE || shotData.main.type != mmeShotFormatAVI) {
-		//only do gamma here if its not avi, if we do it in mmeAviShot its faster for some reason?
-			if (doGamma)
-				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
-		}
+		if (doGamma)
+			R_GammaCorrect( shotBuf, pixelCount * 3 ); 
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
