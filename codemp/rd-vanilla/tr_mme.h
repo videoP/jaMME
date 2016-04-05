@@ -3,12 +3,14 @@
 
 #include "tr_local.h"
 
-#define AVI_MAX_FRAMES	2000000
+#define AVI_MAX_FRAMES	20000 //oh?
 #define AVI_MAX_SIZE	((2*1024-10)*1024*1024)
 #define AVI_HEADER_SIZE	2048
 #define AVI_MAX_FILES	1000
 
 #define BLURMAX 256
+
+#define PIPE_COMMAND_DEFAULT "ffmpeg -f avi -i - -threads 0 -preset ultrafast -y -pix_fmt yuv420p -crf 18 %o.mp4 2> ffmpeglog.txt"
 
 typedef struct mmePipeFile_s {
     char name[MAX_OSPATH];
@@ -29,6 +31,7 @@ typedef struct mmeAviFile_s {
 	int header;
 	int format;
 	qboolean audio;
+	qboolean pipe;
 	mmeShotType_t type;
 } mmeAviFile_t;
 
@@ -61,7 +64,7 @@ typedef struct {
 	mmeBlurControl_t *control;
 } mmeBlurBlock_t;
 
-void R_MME_GetShot( void* output );
+void R_MME_GetShot( void* output, mmeShotType_t type );
 void R_MME_GetStencil( void *output );
 void R_MME_GetDepth( byte *output );
 void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *inBuf, qboolean audio, int aSize, byte *aBuf );
@@ -70,7 +73,6 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 void mmeAviSound( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, const byte *soundBuf, int size );
 void aviClose( mmeAviFile_t *aviFile );
 
-void mmePipeShot(mmePipeFile_t *pipeFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf);
 void pipeClose(mmePipeFile_t *pipeFile);
 
 void MME_AccumClearSSE( void *w, const void *r, short int mul, int count );

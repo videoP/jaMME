@@ -72,7 +72,7 @@ cvar_t	*mme_saveDepth;
 cvar_t	*mme_aviLimit;
 cvar_t  *mme_pipeCommand;
 
-cvar_t	*mme_forceTGA;//loda
+cvar_t	*mme_forceTGA;
 
 ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block ) {
 	mmeBlurControl_t* control = block->control;
@@ -234,7 +234,7 @@ int R_MME_MultiPassNext( ) {
 	outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 	GLimp_EndFrame();
-	R_MME_GetShot( outAlign );
+	R_MME_GetShot( outAlign, shotData.main.type );
 	R_MME_BlurAccumAdd( &passData.dof, outAlign );
 	
 	tr.capturingDofOrStereo = qtrue;
@@ -251,9 +251,9 @@ int R_MME_MultiPassNext( ) {
 	return 0;
 }
 
-static void R_MME_MultiShot( byte * target ) {
+static void R_MME_MultiShot( byte * target, qboolean BGR ) {
 	if ( !passData.control.totalFrames ) {
-		R_MME_GetShot( target );
+		R_MME_GetShot( target, shotData.main.type );
 	} else {
 		Com_Memcpy( target, passData.dof.accum, mainData.pixelCount * 3 );
 	}
@@ -285,7 +285,7 @@ qboolean R_MME_TakeShot( void ) {
 			return qtrue;
 		blurControl->totalIndex = 0;
 		shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 3 );
-		R_MME_MultiShot( shotBuf );
+		R_MME_MultiShot( shotBuf, qfalse );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
@@ -297,8 +297,8 @@ qboolean R_MME_TakeShot( void ) {
 	}
 
 	if (shotData.fps < 0.0f) {
-		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
-		R_MME_MultiShot( shotBuf );
+		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5
+		R_MME_MultiShot( shotBuf, qfalse );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, qfalse, -1, inSound );
@@ -332,7 +332,7 @@ qboolean R_MME_TakeShot( void ) {
 			}
 			if ( mme_saveShot->integer == 1 ) {
 				byte* shotBuf = R_MME_BlurOverlapBuf( blurShot );
-				R_MME_MultiShot( shotBuf ); 
+				R_MME_MultiShot( shotBuf, qfalse ); 
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( shotBuf, glConfig.vidWidth * glConfig.vidHeight * 3 );
 				}
@@ -355,7 +355,7 @@ qboolean R_MME_TakeShot( void ) {
 			outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 			if ( mme_saveShot->integer == 1 ) {
-				R_MME_MultiShot( (byte*)outAlign );
+				R_MME_MultiShot( (byte*)outAlign, qfalse );
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( (byte *) outAlign, pixelCount * 3 );
 				}
@@ -428,11 +428,11 @@ qboolean R_MME_TakeShot( void ) {
 		}
 	} 
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
-		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
-		R_MME_MultiShot( shotBuf );
-		if ( doGamma && (((shotData.main.format != mmeShotFormatAVI && shotData.main.format != mmeShotFormatPIPE) || shotData.main.avi.format == 1))) {//We can do gamma correction later in raw avishot and it will be faster.
-		
-			R_GammaCorrect( shotBuf, pixelCount * 3 );
+		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5?
+			
+		R_MME_MultiShot( shotBuf, qfalse);	
+			if (doGamma)
+				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
@@ -452,7 +452,9 @@ qboolean R_MME_TakeShot( void ) {
 		if (!audioTaken)
 			audio = ri.S_MMEAviImport(inSound, &sizeSound);
 		audioTaken = qtrue;
-		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, audio, sizeSound, inSound );
+
+		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, audio, sizeSound, inSound ); //This is the one used in pipe
+
 		ri.Hunk_FreeTempMemory( shotBuf );
 	}
 
@@ -476,6 +478,7 @@ qboolean R_MME_TakeShot( void ) {
 			ri.Hunk_FreeTempMemory( depthShot );
 		}
 	}
+
 	return qtrue;
 }
 
@@ -528,22 +531,23 @@ const void *R_MME_CaptureShotCmd( const void *data ) {
 			shotData.main.format = mmeShotFormatTGA;
 		}
 		
-		//grayscale works fine only with compressed avi :(
-		if (shotData.main.format != mmeShotFormatAVI || !mme_aviFormat->integer) {
-			if (mme_forceTGA->integer) {
-				shotData.depth.format = mmeShotFormatTGA;
-				shotData.stencil.format = mmeShotFormatTGA;
-			}
-			else {
-				shotData.depth.format = mmeShotFormatPNG;
-				shotData.stencil.format = mmeShotFormatPNG;
-			}
-		} else {
+	//grayscale works fine only with compressed avi :(
+		if ((shotData.main.format != mmeShotFormatAVI && shotData.main.format != mmeShotFormatPIPE) || !mme_aviFormat->integer) {
+			shotData.depth.format = mmeShotFormatPNG;
+			shotData.stencil.format = mmeShotFormatPNG;
+		} else if (shotData.main.format == mmeShotFormatAVI) {
 			shotData.depth.format = mmeShotFormatAVI;
 			shotData.stencil.format = mmeShotFormatAVI;
+		} else if (shotData.main.format == mmeShotFormatPIPE) {
+			shotData.depth.format = mmeShotFormatPIPE;
+			shotData.stencil.format = mmeShotFormatPIPE;
 		}
 
-		shotData.main.type = mmeShotTypeRGB;
+		if ((shotData.main.format == mmeShotFormatAVI && !mme_aviFormat->integer) || shotData.main.format == mmeShotFormatPIPE) {
+			shotData.main.type = mmeShotTypeBGR;
+		} else {
+			shotData.main.type = mmeShotTypeRGB;
+		}
 		if ( mme_screenShotAlpha->integer ) {
 			if ( shotData.main.format == mmeShotFormatPNG )
 				shotData.main.type = mmeShotTypeRGBA;
@@ -636,8 +640,8 @@ void R_MME_Init(void) {
 	mme_saveShot = ri.Cvar_Get ( "mme_saveShot", "1", CVAR_ARCHIVE );
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
 
-	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE);//loda
-	mme_pipeCommand = ri.Cvar_Get ("mme_pipeCommand", "ffmpeg -r %f -f rawvideo -pix_fmt rgb24 -s %wx%h -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 17 -vf vflip mme/capture/%o.mp4 2> ffmpeglog.txt", CVAR_ARCHIVE);
+	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE); //loda, maybe remove this since we can just use alpha channel in existing tga
+	mme_pipeCommand = ri.Cvar_Get ("mme_pipeCommand", PIPE_COMMAND_DEFAULT, CVAR_ARCHIVE);
 	
 	mme_worldShader->modified = qtrue;
 

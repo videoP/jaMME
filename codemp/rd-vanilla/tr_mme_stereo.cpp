@@ -172,7 +172,7 @@ int R_MME_MultiPassNextStereo( ) {
 	outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 	GLimp_EndFrame();
-	R_MME_GetShot( outAlign );
+	R_MME_GetShot( outAlign, shotData.main.type );
 	R_MME_BlurAccumAdd( &passData.dof, outAlign );
 	
 	tr.capturingDofOrStereo = qtrue;
@@ -189,9 +189,9 @@ int R_MME_MultiPassNextStereo( ) {
 	return 0;
 }
 
-static void R_MME_MultiShot( byte * target ) {
+static void R_MME_MultiShot( byte * target, qboolean BGR ) {
 	if ( !passData.control.totalFrames ) {
-		R_MME_GetShot( target );
+		R_MME_GetShot( target, shotData.main.type );
 	} else {
 		Com_Memcpy( target, passData.dof.accum, mainData.pixelCount * 3 );
 	}
@@ -220,7 +220,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			return qtrue;
 		blurControl->totalIndex = 0;
 		shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 3 );
-		R_MME_MultiShot( shotBuf );
+		R_MME_MultiShot( shotBuf, qfalse );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
@@ -256,7 +256,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			}
 			if ( mme_saveShot->integer == 1 ) {
 				byte* shotBuf = R_MME_BlurOverlapBuf( blurShot );
-				R_MME_MultiShot( shotBuf ); 
+				R_MME_MultiShot( shotBuf, qfalse ); 
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( shotBuf, glConfig.vidWidth * glConfig.vidHeight * 3 );
 				}
@@ -279,7 +279,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 			if ( mme_saveShot->integer == 1 ) {
-				R_MME_MultiShot( (byte*)outAlign );
+				R_MME_MultiShot( (byte*)outAlign, qfalse );
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( (byte *) outAlign, pixelCount * 3 );
 				}
@@ -354,10 +354,16 @@ qboolean R_MME_TakeShotStereo( void ) {
 	} 
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
-		R_MME_MultiShot( shotBuf );
 		
-		if ( doGamma ) 
-			R_GammaCorrect( shotBuf, pixelCount * 3 );
+		if (shotData.main.format == mmeShotFormatAVI || shotData.main.format == mmeShotFormatPIPE) {
+		//Its a pipe, we do gamma later
+			R_MME_MultiShot( shotBuf, qtrue);	
+		}
+		else { //Note a pipe
+			R_MME_MultiShot( shotBuf, qfalse);	
+			if (doGamma)
+				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
+		}
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
@@ -432,21 +438,22 @@ const void *R_MME_CaptureShotCmdStereo( const void *data ) {
 		}
 		
 		//grayscale works fine only with compressed avi :(
-		if (shotData.main.format != mmeShotFormatAVI || !mme_aviFormat->integer) {
-			if (mme_forceTGA->integer) {
-				shotData.depth.format = mmeShotFormatTGA;
-				shotData.stencil.format = mmeShotFormatTGA;
-			}
-			else {
-				shotData.depth.format = mmeShotFormatPNG;
-				shotData.stencil.format = mmeShotFormatPNG;
-			}
-		} else {
+		if ((shotData.main.format != mmeShotFormatAVI && shotData.main.format != mmeShotFormatPIPE) || !mme_aviFormat->integer) {
+			shotData.depth.format = mmeShotFormatPNG;
+			shotData.stencil.format = mmeShotFormatPNG;
+		} else if (shotData.main.format == mmeShotFormatAVI) {
 			shotData.depth.format = mmeShotFormatAVI;
 			shotData.stencil.format = mmeShotFormatAVI;
+		} else if (shotData.main.format == mmeShotFormatPIPE) {
+			shotData.depth.format = mmeShotFormatPIPE;
+			shotData.stencil.format = mmeShotFormatPIPE;
 		}
 
-		shotData.main.type = mmeShotTypeRGB;
+		if ((shotData.main.format == mmeShotFormatAVI && !mme_aviFormat->integer) || shotData.main.format == mmeShotFormatPIPE) {
+			shotData.main.type = mmeShotTypeBGR;
+		} else {
+			shotData.main.type = mmeShotTypeRGB;
+		}
 		if ( mme_screenShotAlpha->integer ) {
 			if ( shotData.main.format == mmeShotFormatPNG )
 				shotData.main.type = mmeShotTypeRGBA;

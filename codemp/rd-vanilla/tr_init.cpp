@@ -701,7 +701,10 @@ static void R_ScreenShotDOF_f(void) {
 	}
 	if (!cmd[0])
 		cmd = "shot";	
-	if (!Q_stricmp(ext, "avi") || !ext[0]) {
+	if ((Q_stricmp(ext, "png")
+		&& Q_stricmp(ext, "tga")
+		&& Q_stricmp(ext, "jpg"))
+		|| !ext[0]) {
 		ext = "png";
 	}
 	if (name = R_ScreenShotName(cmd, ext, fileName)) {
@@ -1099,6 +1102,9 @@ Ghoul2 Insert End
 	ri.Cmd_AddCommand( "modelcacheinfo", RE_RegisterModels_Info_f);
 	ri.Cmd_AddCommand( "minimize", GLimp_Minimize );
 
+	ri.Cmd_AddCommand( "capturestop", R_MME_Shutdown );
+ 	ri.Cmd_AddCommand( "capturestopstereo", R_MME_ShutdownStereo );
+
 }
 
 
@@ -1246,6 +1252,9 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	ri.Cmd_RemoveCommand ("modelist");
 	ri.Cmd_RemoveCommand ("modelcacheinfo");
 	ri.Cmd_RemoveCommand ("minimize");
+
+	ri.Cmd_RemoveCommand ("capturestop");
+ 	ri.Cmd_RemoveCommand ("capturestopstereo");
 
 	if ( r_DynamicGlow && r_DynamicGlow->integer )
 	{
