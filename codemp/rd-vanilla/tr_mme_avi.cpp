@@ -388,7 +388,6 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 	return qtrue;
 }
 
-void R_GammaCorrectForPIPE(byte *in, int bufSize);
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
 	int i, pixels, outSize;
@@ -423,7 +422,7 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 			break;
 		case mmeShotTypeBGR:		
 			if (doGamma)
-				R_GammaCorrectForPIPE(inBuf, pixels*3);//Can we do gamma correction + color/avi conversion here with lower cost?
+				R_GammaCorrect(inBuf, pixels*3);//Can we do gamma correction + color/avi conversion here with lower cost?
 			outSize = width * height * 3;
 			break;
 		} 

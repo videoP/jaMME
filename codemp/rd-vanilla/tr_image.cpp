@@ -69,16 +69,6 @@ void R_GammaCorrect( byte *buffer, int bufSize ) {
 	}
 }
 
-void R_GammaCorrectForPIPE(byte *inBuf, int pixels) {
-	int i;
-	
-	for ( i = 0; i < pixels/3; i++ ) {
-		inBuf[i*3+0] = s_gammatable[inBuf[i*3+0]];
-		inBuf[i*3+1] = s_gammatable[inBuf[i*3+1]];
-		inBuf[i*3+2] = s_gammatable[inBuf[i*3+2]];
-	}
-}
-
 typedef struct {
 	char *name;
 	int	minimize, maximize;
