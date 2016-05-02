@@ -390,7 +390,8 @@ static qboolean aviValid( const mmeAviFile_t *aviFile, const char *name, mmeShot
 
 void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf, qboolean audio ) {
 	byte *outBuf;
-	int i, pixels, outSize;
+	int i, outSize;
+	const int pixels = width*height;
 
 	if (!fps)
 		return;
@@ -400,9 +401,7 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 			return;
 	}
 
-	pixels = width*height;
-	outSize = width*height*3 + 2048; //Allocate bit more to be safish?
-	outBuf = (byte *)ri.Hunk_AllocateTempMemory( outSize + 8);
+	outBuf = (byte *)ri.Hunk_AllocateTempMemory( (pixels*3 + 2048) + 8);
 	outBuf[0] = '0';outBuf[1] = '0';
 	outBuf[2] = 'd';outBuf[3] = 'b';
 
@@ -420,15 +419,17 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 				outBuf[8 + i*3 + 1 ] = inBuf[ i*3 + 1];
 				outBuf[8 + i*3 + 2 ] = inBuf[ i*3 + 0];
 			}
-			outSize = width * height * 3;
+			outSize = pixels * 3;
 			break;
 		case mmeShotTypeBGR:	
-			outSize = width * height * 3;
+			outSize = pixels * 3;
 			break;
 		} 
 	} else if ( aviFile->format == 1 ) {
+		outSize = pixels*3 + 2048; //???
 		outSize = SaveJPG( mme_jpegQuality->integer, width, height, type, inBuf, outBuf + 8, outSize );
 	}
+
 	aviWrite32( outBuf + 4, outSize );
 	if (!aviFile->pipe) {
  		aviFile->index[ aviFile->iframes ] = outSize;
