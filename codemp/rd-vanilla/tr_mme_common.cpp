@@ -85,6 +85,7 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 	int outSize;
 	char fileName[MAX_OSPATH];
 
+
 	format = shot->format;
 	switch (format) {
 	case mmeShotFormatJPG:
@@ -101,18 +102,18 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 		break;
 	case mmeShotFormatPNG:
 		extension = "png";
-        break;
-    case mmeShotFormatPIPE:
-//        mmePipeShot(&shot->pipe, shot->name, shot->type, width, height, fps, inBuf);
-//        return;
-            if (!shot->avi.f) {
-                shot->avi.pipe = qtrue;
-            }
+       break;
+	case mmeShotFormatPIPE:
+		//mmePipeShot(&shot->pipe, shot->name, shot->type, width, height, fps, inBuf);
+		//return;
+		if (!shot->avi.f) {
+			shot->avi.pipe = qtrue;
+		}
 	case mmeShotFormatAVI:
 		mmeAviShot( &shot->avi, shot->name, shot->type, width, height, fps, inBuf, audio );
 		if (audio)
 			mmeAviSound( &shot->avi, shot->name, shot->type, width, height, fps, aBuf, aSize );
-		return;
+        return;
 	}
 
 	if (aSize < 0) {
@@ -157,12 +158,6 @@ void R_MME_SaveShot( mmeShot_t *shot, int width, int height, float fps, byte *in
 	if (outSize)
 		ri.FS_WriteFile( fileName, outBuf, outSize );
 	ri.Hunk_FreeTempMemory( outBuf );
-}
-
-ID_INLINE byte * R_MME_BlurOverlapBuf(mmeBlurBlock_t *block) {
-	mmeBlurControl_t* control = block->control;
-	int index = control->overlapIndex % control->overlapFrames;
-	return (byte *)(block->overlap + block->count * index);
 }
 
 void blurCreate( mmeBlurControl_t* control, const char* type, int frames ) {
