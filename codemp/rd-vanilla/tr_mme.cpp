@@ -70,15 +70,8 @@ cvar_t	*mme_saveStencil;
 cvar_t	*mme_saveDepth;
 
 cvar_t	*mme_aviLimit;
+
 cvar_t  *mme_pipeCommand;
-
-cvar_t	*mme_forceTGA;
-
-ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block ) {
-	mmeBlurControl_t* control = block->control;
-	int index = control->overlapIndex % control->overlapFrames;
-	return (byte *)( block->overlap + block->count * index );
-}
 
 static void R_MME_MakeBlurBlock( mmeBlurBlock_t *block, int size, mmeBlurControl_t* control ) {
 	memset( block, 0, sizeof( *block ) );
@@ -297,7 +290,7 @@ qboolean R_MME_TakeShot( void ) {
 	}
 
 	if (shotData.fps < 0.0f) {
-		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5
+		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
 		R_MME_MultiShot( shotBuf );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
@@ -428,11 +421,11 @@ qboolean R_MME_TakeShot( void ) {
 		}
 	} 
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
-		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 ); //why * 5?
-	
-		R_MME_MultiShot( shotBuf);	
-		if (doGamma)
-			R_GammaCorrect( shotBuf, pixelCount * 3 ); 
+		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
+		R_MME_MultiShot( shotBuf );
+		
+		if ( doGamma ) 
+			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
@@ -452,9 +445,7 @@ qboolean R_MME_TakeShot( void ) {
 		if (!audioTaken)
 			audio = ri.S_MMEAviImport(inSound, &sizeSound);
 		audioTaken = qtrue;
-
-		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, audio, sizeSound, inSound ); //This is the one used in pipe
-
+		R_MME_SaveShot( &shotData.main, glConfig.vidWidth, glConfig.vidHeight, shotData.fps, shotBuf, audio, sizeSound, inSound );
 		ri.Hunk_FreeTempMemory( shotBuf );
 	}
 
@@ -478,7 +469,6 @@ qboolean R_MME_TakeShot( void ) {
 			ri.Hunk_FreeTempMemory( depthShot );
 		}
 	}
-
 	return qtrue;
 }
 
@@ -524,14 +514,14 @@ const void *R_MME_CaptureShotCmd( const void *data ) {
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "png")) {
 			shotData.main.format = mmeShotFormatPNG;
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "avi")) {
-			shotData.main.format = mmeShotFormatAVI;
-		} else if (!Q_stricmp(mme_screenShotFormat->string, "pipe")) {
+            shotData.main.format = mmeShotFormatAVI;
+        } else if (!Q_stricmp(mme_screenShotFormat->string, "pipe")) {
             shotData.main.format = mmeShotFormatPIPE;
 		} else {
 			shotData.main.format = mmeShotFormatTGA;
 		}
 		
-	//grayscale works fine only with compressed avi :(
+		//grayscale works fine only with compressed avi :(
 		if ((shotData.main.format != mmeShotFormatAVI && shotData.main.format != mmeShotFormatPIPE) || !mme_aviFormat->integer) {
 			shotData.depth.format = mmeShotFormatPNG;
 			shotData.stencil.format = mmeShotFormatPNG;
@@ -594,14 +584,16 @@ void R_MME_Shutdown(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
 	aviClose( &shotData.stencil.avi );
-	pipeClose( &shotData.main.pipe );
+    pipeClose( &shotData.main.pipe );
     pipeClose( &shotData.depth.pipe );
     pipeClose( &shotData.stencil.pipe );
 }
 
 void R_MME_Init(void) {
 	
-	// MME cvars
+    // MME cvars
+    mme_pipeCommand = ri.Cvar_Get ("mme_pipeCommand", PIPE_COMMAND_DEFAULT, CVAR_ARCHIVE);
+    
 	mme_aviFormat = ri.Cvar_Get ("mme_aviFormat", "0", CVAR_ARCHIVE);
 	mme_aviLimit = ri.Cvar_Get ("mme_aviLimit", "1", CVAR_ARCHIVE);
 
@@ -640,9 +632,6 @@ void R_MME_Init(void) {
 	mme_saveShot = ri.Cvar_Get ( "mme_saveShot", "1", CVAR_ARCHIVE );
 	mme_workMegs = ri.Cvar_Get ( "mme_workMegs", "128", CVAR_LATCH | CVAR_ARCHIVE );
 
-	mme_forceTGA = ri.Cvar_Get("mme_forceTGA", "0", CVAR_ARCHIVE); //loda, maybe remove this since we can just use alpha channel in existing tga
-	mme_pipeCommand = ri.Cvar_Get ("mme_pipeCommand", PIPE_COMMAND_DEFAULT, CVAR_ARCHIVE);
-	
 	mme_worldShader->modified = qtrue;
 
 	Com_Memset( &shotData, 0, sizeof(shotData));

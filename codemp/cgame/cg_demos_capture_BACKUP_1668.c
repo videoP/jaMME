@@ -589,12 +589,20 @@ void demoCaptureCommand_f(void) {
 			CG_DemosAddLog( "Not capturing at the moment" );
 		demo.capture.active = qfalse;
 		trap_SendConsoleCommand("capturestop;");
+<<<<<<< HEAD
+ 		trap_SendConsoleCommand("capturestopstereo;");
+=======
 		trap_SendConsoleCommand("capturestopstereo;");
+>>>>>>> upstream/master
 		if ( demo.loop.total ) {
 			CG_DemosAddLog( "Capture looping stopped too" );
 			demo.loop.total = 0;
 		}
+<<<<<<< HEAD
+	} else if (!Q_stricmp(cmd, "jpg") || !Q_stricmp(cmd, "tga") || !Q_stricmp(cmd, "png") || !Q_stricmp(cmd, "avi") || !Q_stricmp(cmd, "pipe")) {
+=======
 	} else if (!Q_stricmp(cmd, "jpg") || !Q_stricmp(cmd, "tga") || !Q_stricmp(cmd, "png") || !Q_stricmp(cmd, "avi") || !Q_stricmp(cmd, "pipe")){
+>>>>>>> upstream/master
 		demo.capture.active = qtrue;
 		demo.capture.locked = qfalse;
 		

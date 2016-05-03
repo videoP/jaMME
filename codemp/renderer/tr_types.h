@@ -415,8 +415,8 @@ typedef enum {
 	mmeShotFormatTGA,
 	mmeShotFormatJPG,
 	mmeShotFormatPNG,
-	mmeShotFormatAVI,
-	mmeShotFormatPIPE,
+    mmeShotFormatAVI,
+    mmeShotFormatPIPE,
 } mmeShotFormat_t;
 
 typedef enum {

@@ -107,8 +107,6 @@ cvar_t	*r_DynamicGlowSoft;
 cvar_t	*r_DynamicGlowWidth;
 cvar_t	*r_DynamicGlowHeight;
 
-cvar_t	*r_smartpicmip;
-
 cvar_t	*r_ignoreGLErrors;
 cvar_t	*r_logFile;
 
@@ -702,9 +700,9 @@ static void R_ScreenShotDOF_f(void) {
 	if (!cmd[0])
 		cmd = "shot";	
 	if ((Q_stricmp(ext, "png")
-		&& Q_stricmp(ext, "tga")
-		&& Q_stricmp(ext, "jpg"))
-		|| !ext[0]) {
+        && Q_stricmp(ext, "tga")
+        && Q_stricmp(ext, "jpg"))
+        || !ext[0]) {
 		ext = "png";
 	}
 	if (name = R_ScreenShotName(cmd, ext, fileName)) {
@@ -937,7 +935,6 @@ void R_Register( void )
 	r_DynamicGlowWidth					= ri.Cvar_Get( "r_DynamicGlowWidth",				"320",						CVAR_ARCHIVE|CVAR_LATCH );
 	r_DynamicGlowHeight					= ri.Cvar_Get( "r_DynamicGlowHeight",				"240",						CVAR_ARCHIVE|CVAR_LATCH );
 	r_picmip							= ri.Cvar_Get( "r_picmip",							"0",						CVAR_ARCHIVE|CVAR_LATCH );
-	r_smartpicmip						= ri.Cvar_Get("r_smartpicmip",						"0",						CVAR_ARCHIVE | CVAR_LATCH);
 	ri.Cvar_CheckRange( r_picmip, 0, 16, qtrue );
 	r_colorMipLevels					= ri.Cvar_Get( "r_colorMipLevels",					"0",						CVAR_LATCH );
 	r_detailTextures					= ri.Cvar_Get( "r_detailtextures",					"1",						CVAR_ARCHIVE|CVAR_LATCH );
@@ -1101,10 +1098,9 @@ Ghoul2 Insert End
 	ri.Cmd_AddCommand( "modelist", R_ModeList_f );
 	ri.Cmd_AddCommand( "modelcacheinfo", RE_RegisterModels_Info_f);
 	ri.Cmd_AddCommand( "minimize", GLimp_Minimize );
-
+	
 	ri.Cmd_AddCommand( "capturestop", R_MME_Shutdown );
- 	ri.Cmd_AddCommand( "capturestopstereo", R_MME_ShutdownStereo );
-
+	ri.Cmd_AddCommand( "capturestopstereo", R_MME_ShutdownStereo );
 }
 
 
@@ -1254,7 +1250,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	ri.Cmd_RemoveCommand ("minimize");
 
 	ri.Cmd_RemoveCommand ("capturestop");
- 	ri.Cmd_RemoveCommand ("capturestopstereo");
+	ri.Cmd_RemoveCommand ("capturestopstereo");
 
 	if ( r_DynamicGlow && r_DynamicGlow->integer )
 	{

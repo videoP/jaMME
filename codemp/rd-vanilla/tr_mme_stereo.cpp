@@ -189,7 +189,7 @@ int R_MME_MultiPassNextStereo( ) {
 	return 0;
 }
 
-static void R_MME_MultiShot( byte * target, qboolean BGR ) {
+static void R_MME_MultiShot( byte * target ) {
 	if ( !passData.control.totalFrames ) {
 		R_MME_GetShot( target, shotData.main.type );
 	} else {
@@ -220,7 +220,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			return qtrue;
 		blurControl->totalIndex = 0;
 		shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 3 );
-		R_MME_MultiShot( shotBuf, qfalse );
+		R_MME_MultiShot( shotBuf );
 		if ( doGamma ) 
 			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
@@ -256,7 +256,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			}
 			if ( mme_saveShot->integer == 1 ) {
 				byte* shotBuf = R_MME_BlurOverlapBuf( blurShot );
-				R_MME_MultiShot( shotBuf, qfalse ); 
+				R_MME_MultiShot( shotBuf ); 
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( shotBuf, glConfig.vidWidth * glConfig.vidHeight * 3 );
 				}
@@ -279,7 +279,7 @@ qboolean R_MME_TakeShotStereo( void ) {
 			outAlign = (__m64 *)((((intptr_t)(outAlloc)) + 15) & ~15);
 
 			if ( mme_saveShot->integer == 1 ) {
-				R_MME_MultiShot( (byte*)outAlign, qfalse );
+				R_MME_MultiShot( (byte*)outAlign );
 				if ( doGamma && mme_blurGamma->integer ) {
 					R_GammaCorrect( (byte *) outAlign, pixelCount * 3 );
 				}
@@ -354,16 +354,10 @@ qboolean R_MME_TakeShotStereo( void ) {
 	} 
 	if ( mme_saveShot->integer > 1 || (!blurControl->totalFrames && mme_saveShot->integer )) {
 		byte *shotBuf = (byte *)ri.Hunk_AllocateTempMemory( pixelCount * 5 );
+		R_MME_MultiShot( shotBuf );
 		
-		if (shotData.main.format == mmeShotFormatAVI || shotData.main.format == mmeShotFormatPIPE) {
-		//Its a pipe, we do gamma later
-			R_MME_MultiShot( shotBuf, qtrue);	
-		}
-		else { //Note a pipe
-			R_MME_MultiShot( shotBuf, qfalse);	
-			if (doGamma)
-				R_GammaCorrect( shotBuf, pixelCount * 3 ); 
-		}
+		if ( doGamma ) 
+			R_GammaCorrect( shotBuf, pixelCount * 3 );
 
 		if ( shotData.main.type == mmeShotTypeRGBA ) {
 			int i;
@@ -432,7 +426,7 @@ const void *R_MME_CaptureShotCmdStereo( const void *data ) {
 		} else if (!Q_stricmp(mme_screenShotFormat->string, "avi")) {
             shotData.main.format = mmeShotFormatAVI;
         } else if (!Q_stricmp(mme_screenShotFormat->string, "pipe")) {
-             shotData.main.format = mmeShotFormatPIPE;
+            shotData.main.format = mmeShotFormatPIPE;
 		} else {
 			shotData.main.format = mmeShotFormatTGA;
 		}
@@ -490,8 +484,8 @@ void R_MME_CaptureStereo( const char *shotName, float fps, float focus, float ra
 void R_MME_ShutdownStereo(void) {
 	aviClose( &shotData.main.avi );
 	aviClose( &shotData.depth.avi );
-	aviClose( &shotData.stencil.avi );
-	pipeClose( &shotData.main.pipe );
+    aviClose( &shotData.stencil.avi );
+    pipeClose( &shotData.main.pipe );
     pipeClose( &shotData.depth.pipe );
     pipeClose( &shotData.stencil.pipe );
 }

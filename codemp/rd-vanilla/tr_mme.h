@@ -3,14 +3,14 @@
 
 #include "tr_local.h"
 
-#define AVI_MAX_FRAMES	20000 //oh?
+#define AVI_MAX_FRAMES	20000
 #define AVI_MAX_SIZE	((2*1024-10)*1024*1024)
 #define AVI_HEADER_SIZE	2048
 #define AVI_MAX_FILES	1000
 
 #define BLURMAX 256
 
-#define PIPE_COMMAND_DEFAULT "ffmpeg -f avi -i - -threads 0 -preset ultrafast -y -pix_fmt yuv420p -crf 18 %o.mp4 2> ffmpeglog.txt"
+#define PIPE_COMMAND_DEFAULT "ffmpeg -f avi -i - -threads 0 -preset ultrafast -y -pix_fmt yuv444p -crf 23 %o.mp4 2> ffmpeglog.txt"
 
 typedef struct mmePipeFile_s {
     char name[MAX_OSPATH];
@@ -31,7 +31,7 @@ typedef struct mmeAviFile_s {
 	int header;
 	int format;
 	qboolean audio;
-	qboolean pipe;
+    qboolean pipe;
 	mmeShotType_t type;
 } mmeAviFile_t;
 
@@ -73,6 +73,7 @@ void mmeAviShot( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, in
 void mmeAviSound( mmeAviFile_t *aviFile, const char *name, mmeShotType_t type, int width, int height, float fps, const byte *soundBuf, int size );
 void aviClose( mmeAviFile_t *aviFile );
 
+void mmePipeShot(mmePipeFile_t *pipeFile, const char *name, mmeShotType_t type, int width, int height, float fps, byte *inBuf);
 void pipeClose(mmePipeFile_t *pipeFile);
 
 void MME_AccumClearSSE( void *w, const void *r, short int mul, int count );
@@ -98,6 +99,6 @@ extern cvar_t	*mme_blurStrength;
 extern cvar_t	*mme_dofFrames;
 extern cvar_t	*mme_dofRadius;
 
-ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block );
+extern ID_INLINE byte * R_MME_BlurOverlapBuf( mmeBlurBlock_t *block );
 
 #endif //TR_MME_H
