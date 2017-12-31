@@ -250,4 +250,5 @@ XCVAR_DEF(cg_crosshairRed,						"0",					NULL,					CVAR_ARCHIVE)
 XCVAR_DEF(cg_crosshairGreen,					"0",					NULL,					CVAR_ARCHIVE)
 XCVAR_DEF(cg_crosshairBlue,						"0",					NULL,					CVAR_ARCHIVE)
 XCVAR_DEF(cg_crosshairAlpha,					"255",					NULL,					CVAR_ARCHIVE)
+XCVAR_DEF(cg_logStrafeTrail,					 "0",					NULL,					CVAR_ARCHIVE)
 #undef XCVAR_DEF

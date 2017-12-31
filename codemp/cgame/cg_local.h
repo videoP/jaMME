@@ -507,6 +507,8 @@ typedef struct centity_s {
 	qboolean		cloaked;
 
 	int				vChatTime;
+
+	vec3_t			lastOrigin; //JAPO Strafetrails
 } centity_t;
 
 
@@ -1115,15 +1117,15 @@ Ghoul2 Insert End
 		} stats[MAX_CLIENTS];
 	} enhanced;
 	struct {
-		qboolean		detected;
+		qboolean			detected;
 		unsigned int		displacement, displacementSamples; //Speedometer, racetimer stuff
 		float				maxSpeed, currentSpeed;
 		int					lastCheckPointPrintTime;
 		int					timerStartTime;
 		vec4_t				strafeHelperActiveColor;
-		//char				logStrafeTrailFilename[MAX_QPATH];
-		//qboolean			loggingStrafeTrail;
-		//fileHandle_t		strafeTrailFileHandle;
+		qboolean			loggingStrafeTrail;
+		char				logStrafeTrailFilename[MAX_QPATH];
+		fileHandle_t		strafeTrailFileHandle;	
 		//clientCheckpoint_t	clientCheckpoints[MAX_CLIENT_CHECKPOINTS];//japro checkpoints
 	} japro;
 	
